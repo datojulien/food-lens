@@ -236,6 +236,12 @@ export function normalizeOpenFoodFacts(product = {}, barcode = '') {
   if (has(/en:(nuts|seeds|peanuts|almonds|walnuts|cashews)( |$)/) && hsrCategory==='2') nutriCategory='fats';
   if (has(/en:(beef|pork|lamb|veal|red-meats|mutton)( |$)/) && nutriCategory==='food') nutriCategory='redmeat';
   const ingredients = String(product.ingredients_text || product.ingredients_text_en || '');
+  // Open Food Facts uses _100g as a canonical nutrient field even for drinks.
+  // That alone does not prove the label describes 100 mL of a prepared drink.
+  const nutritionBasis = String(product.nutrition_data_per || '').toLowerCase();
+  const isPer100ml = nutritionBasis.includes('100ml') || nutritionBasis.includes('100 ml') || Object.keys(m).some(k=>k.endsWith('_100ml'));
+  const isBeverage = ['drink','water'].includes(nutriCategory) || ['1','1D'].includes(hsrCategory);
+  const portion = n(product.serving_quantity);
   const additiveNames = Array.isArray(product.additives_tags) ? product.additives_tags : [];
   // Presence can be inferred from listed E-codes, but absence cannot be inferred.
   const detectedSweeteners = /\b(?:aspartame|acesulfame|sucralose|saccharin|stevia|steviol glycosides|cyclamate|neotame|advantame|e95[0-9]|e96[0-9])\b/i.test(ingredients+' '+additiveNames.join(' '));
@@ -253,9 +259,11 @@ export function normalizeOpenFoodFacts(product = {}, barcode = '') {
     sugars: get('sugars_100g'),satFat:get('saturated-fat_100g'), salt: salt !== null ? salt : sodiumG !== null ? sodiumG * 2.5 : null,
     sodiumMg,protein:get('proteins_100g'),fibre:get('fiber_100g','fibre_100g'),fat:get('fat_100g'),
     fvlNutri:null,fvnlHsr:null,hsrConcentrated:false,sweeteners:detectedSweeteners ? true : null,
+    portionSize:portion!==null && portion<=2500?portion:null,lactose:get('lactose_100g'),galactose:get('galactose_100g'),
+    drinkAsPrepared:isBeverage && isPer100ml ? true : null,dbLookup:'found',
     nutriCategory,hsrCategory,offGrade:grade,categoryNote:classificationNote,
     from:'Open Food Facts',updated:Number(product.last_modified_t)||null,
-    unit: ['ml','l'].some(x=>String(product.nutrition_data_per||'').toLowerCase()===x) || ['1','1D'].includes(hsrCategory) ? 'ml':'g',
+    unit: isBeverage ? 'ml' : 'g',
     edited:false
   };
 }

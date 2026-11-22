@@ -2,15 +2,18 @@
 
 A private, mobile-first personal food scanner for GitHub Pages.
 
-**Scan a barcode → retrieve real product details from Open Food Facts → compare France's Nutri-Score with Australia's Health Star Rating.** Unlike a simple conversion, each scoring engine follows its own country's points tables and product category logic.
+**Scan a barcode → retrieve real product details from Open Food Facts → compare four independent systems: France's Nutri-Score, Australia's Health Star Rating, UK traffic lights, and Singapore Nutri-Grade.** Unlike a simple conversion, each scoring engine follows its own country's points tables and product category logic.
 
 ## Features
 
-- Scan EAN-13, EAN-8, UPC-A, UPC-E, CODE-128 and ITF via your phone's camera using pinned `html5-qrcode` (loaded on demand). A native BarcodeDetector fallback is used where supported, with a manual barcode field in all browsers.
+- Scan EAN-13, EAN-8, UPC-A, UPC-E, CODE-128 and ITF. Native `BarcodeDetector` is preferred when available; `html5-qrcode` v2.3.8 is preloaded in the background as a fallback for iOS and other browsers. Features include a large guide frame, fast automatic reading, scan feedback, optional flashlight/2× zoom (where supported), and manual entry.
 - Look up a product by barcode via Open Food Facts Product API v2; example lookup uses barcode `3017620422003` (Nutella). No sample product facts or ratings are fabricated or bundled.
 - Display real product images, ingredients, NOVA group, allergens (when supplied), and nutrition per 100 g / 100 mL.
 - Calculate **Nutri-Score (updated 2023 algorithm)** for foods, cheeses, red meat, fats/nuts/seeds, and beverages (with a separate verified-water option). Prefer Open Food Facts' reported grade before the user edits any data; show the source explicitly.
 - Calculate **Health Star Rating (Implementation Guide v9, December 2025)** for all six categories, including automatic rating options for verified water, unsweetened flavoured water and fresh/minimally processed fruit/vegetables.
+- Calculate **UK traffic lights** (2016 Department of Health/FSA guidance), reporting low/medium/high for fat, saturates, sugars and salt individually, with large-portion overrides when serving size is known.
+- Calculate **Singapore Nutri-Grade for drinks** (2022 beverage rules, valid as of November 2026), A–D according to total sugars minus separately declared lactose/galactose, saturated fat, and presence of non-sugar substitutes. No grade is shown for solid foods or without confirmed per-100mL prepared nutrition data.
+- **Clear product-not-found and database-failure warnings**, distinct from nutritional classification. Barcode recognition does not imply the product exists in Open Food Facts.
 - **Never assume missing fibre, protein or ingredient percentage is zero.** Show a possible grade or star range instead; if the rating is invariant over possible missing inputs, say so explicitly.
 - Edit nutrition values and categories directly from the packet. Convert between salt (g) and sodium (mg). Distinguish Nutri-Score's FVL percentage from HSR's FVNL percentage.
 - Device-only history, favourites, JSON backup and import, installable PWA, and offline access to the app shell. No user accounts, backend or database hosting.
@@ -20,8 +23,9 @@ A private, mobile-first personal food scanner for GitHub Pages.
 - This app is a **personal, educational tool, not an official Nutri-Score or Health Star Rating calculator** and it is not approved to reproduce either scheme's certified artwork. The UI uses its own typography and simple letter/star visuals.
 - HSR category eligibility — especially **milk substitutes, dairy foods and high-calcium cheese** — cannot be reliably inferred from a barcode. The app suggests a category from Open Food Facts tags but tells users to check the criteria themselves.
 - The **FVNL ingredient-percent values are not universally supplied by Open Food Facts**. Without verified values, the app calculates a possible range and offers manual input. Mixed dehydrated + fresh FVNL requires pre-adjusting the fraction following the HSR guide.
-- The app offers automatic HSR categories only upon explicit user choice or a database classification for plain water. Verify all such choices and the label itself.
+- The app offers automatic HSR categories only upon explicit user choice or a database classification for plain water. UK traffic-light colours can be provisional when serving size is unknown; no official aggregate UK score exists. Verify all such choices and the label itself.
 - Open Food Facts' *reported* Nutri-Score may use a different algorithm version from this app's computation. A database grade is labelled as such and is cleared when the nutritional label is edited.
+- Singapore's Nutri-Grade covers qualifying beverages as of 2026; its announced extension to selected other food types was postponed to 2028. Drink powders and concentrates require nutrition values *as prepared*, not dry-weight numbers. Non-sugar substitutes must be confirmed to award an A.
 - Labels may report prepared versus as-sold values. They must use the correct per-100g/per-100mL basis for the scoring method. The app does not convert recipes or servings.
 - Nutrient data may be missing/incorrect; novel formulations may have different nutrition. The source API is community maintained. Some products will not be found, especially products sold locally in Malaysia.
 - Although the app runs locally on GitHub Pages, queries send barcodes to Open Food Facts; loading the scanner library or web fonts also communicates with a CDN. Device-only storage is not encrypted; don't use a shared device for sensitive data.
@@ -51,13 +55,15 @@ Node 20+: `npm test` (zero npm dependencies). A browser is needed for scanner an
 
 - Plain HTML/CSS/ES modules, no framework/build chain.
 - Uses [Open Food Facts](https://world.openfoodfacts.org/) API. Attribute the database as Open Food Facts and review its [ODbL reuse rules](https://world.openfoodfacts.org/terms-of-use) before publishing a commercial derivative database.
-- `html5-qrcode@2.3.8` is served on demand from jsDelivr, falling back to unpkg. To make camera scanning self-hosted, vendor its distributable (subject to its license) and update `loadScannerLibrary()`.
+- `html5-qrcode@2.3.8` is prefetched after initial page load from jsDelivr, falling back to unpkg. To make camera scanning self-hosted, vendor its distributable (subject to its license) and update `loadScannerLibrary()`.
 - The Open Food Facts REST API asks apps to identify themselves using a custom `User-Agent`; browsers block setting that header. For single-user personal use the direct browser fetch is kept lightweight. At scale, use a proxy with an identified User-Agent in accordance with their guidance.
 
 #### Official scoring references
 
 - [Santé publique France — Nutri-Score](https://www.santepubliquefrance.fr/en/Nutri-Score)
 - [Scientific and technical Q&A (June 2024)](https://www.blv.admin.ch/dam/blv/de/dokumente/lebensmittel-und-ernaehrung/ernaehrung/nutri-score-fragen-antworten-en.pdf.download.pdf/QR_scientifique_technique_EN_011119.pdf), esp. pages 26–32 for updated algorithms.
+- [UK front-of-pack traffic-light guidance (2016)](https://www.gov.uk/government/publications/front-of-pack-nutrition-labelling-guidance)
+- [Singapore Nutri-Grade measures](https://www.hpb.gov.sg/healthy-living/food-and-beverage/nutri-grade/)
 - [Australian Health Star Rating Implementation Guide v9](https://www.healthstarrating.gov.au/industry/health-star-rating-system-implementation-guide), Appendix 1 tables 1–7.
 - [Open Food Facts Product API](https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/)
 
@@ -67,7 +73,8 @@ Node 20+: `npm test` (zero npm dependencies). A browser is needed for scanner an
 index.html                 Main app / PWA entry
 styles.css                 Responsive UI
 app.mjs                    Barcode lookup, camera, local data, views
-scores.mjs                 Pure independent rating engines
+scores.mjs                 French and Australian scoring engines
+regional.mjs               UK and Singapore scoring engines
 sw.js                      Offline app shell, same-origin only
 manifest.webmanifest       Installable PWA manifest
 icons/                     App icon assets

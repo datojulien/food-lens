@@ -1,9 +1,10 @@
 import {calculateNutriScore, calculateHSR, normalizeOpenFoodFacts, nutriCategories, hsrCategories, numberOrNull} from './scores.mjs';
+import {calculateUKTraffic, calculateSingaporeGrade} from './regional.mjs';
 
 const $=sel=>document.querySelector(sel);
 const $$=sel=>Array.from(document.querySelectorAll(sel));
 const STORAGE_KEY='foodlens-library-1';
-const OFF_FIELDS='code,product_name,product_name_en,brands,quantity,image_front_url,image_url,image_front_small_url,ingredients_text,ingredients_text_en,categories_tags,additives_tags,allergens_tags,nova_group,nutriments,nutriscore_grade,nutriscore_score,nutriscore_data,nutrition_data_per,last_modified_t';
+const OFF_FIELDS='code,product_name,product_name_en,brands,quantity,image_front_url,image_url,image_front_small_url,ingredients_text,ingredients_text_en,categories_tags,additives_tags,allergens_tags,nova_group,nutriments,nutriscore_grade,nutriscore_score,nutriscore_data,nutrition_data_per,serving_quantity,serving_size,last_modified_t';
 const SAMPLE_BARCODE='3017620422003'; // Nutella, for live API demonstration, not a hardcoded score.
 const MAX_HISTORY=70;
 let storage = readStorage();
@@ -16,6 +17,7 @@ let camera = null;
 let nativeStream = null;
 let nativeFrame = 0;
 let openingCamera = false;
+let cameraSession=0,decoderLoadPromise=null,torchOn=false,zoomOn=false,scannerTipTimer=null;
 let toastTimeout;
 
 function esc(value='') { return String(value ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -57,7 +59,7 @@ async function lookupBarcode(raw){
     if(obj.status!==1 || !obj.product){
       const saved=storage.items.find(x=>x.key===barcode);
       if(saved?.profile){current=structuredClone(saved.profile);editorOpen=false;renderCurrent();status('Product not currently available in the database. Showing your locally saved record.');return;}
-      current=blankProfile(barcode);editorOpen=true;renderCurrent();status('Barcode not found. Enter the nutrition details from the product label below.');return;
+      current=blankProfile(barcode);current.dbLookup='not-found';editorOpen=true;renderCurrent();status('Barcode scanned, but this product is not listed in Open Food Facts. No nutritional rating is verified. Check the packet and enter its label below.','error');return;
     }
     current=normalizeOpenFoodFacts(obj.product,barcode);
     // Prefer the user's previously corrected label values, not a later unverified database update.
@@ -68,13 +70,14 @@ async function lookupBarcode(raw){
     if(mine!==requestId)return;
     const saved=storage.items.find(x=>x.key===barcode);
     if(saved?.profile){current=structuredClone(saved.profile);renderCurrent();status('Offline or database unavailable. Showing your locally saved data.');}
-    else status(e.name==='AbortError'?'Product lookup timed out. Please retry, or enter the label details manually.':`Unable to fetch this product: ${e.message}. You can still enter its nutrition label manually.`,'error');
+    else {current=blankProfile(barcode);current.dbLookup='unavailable';editorOpen=false;renderCurrent();status(e.name==='AbortError'?'Lookup timed out. This is a database connection problem, not a nutrition rating. Retry or enter the package details.':`Database unavailable: ${e.message}. Your product is not identified; enter its nutritional details if you wish.`,'error');}
   }finally{clearTimeout(timer);}
 }
 function blankProfile(barcode=''){
   return {barcode,manualId:barcode?'':`manual-${Date.now()}`,name:'My food product',brand:'',quantity:'',image:'',ingredients:'',categories:[],additives:0,nova:null,allergens:[],
     energyKj:null,kcal:null,sugars:null,satFat:null,salt:null,sodiumMg:null,protein:null,fibre:null,fat:null,
     fvlNutri:null,fvnlHsr:null,hsrConcentrated:false,sweeteners:null,nutriCategory:'food',hsrCategory:'2',offGrade:null,
+    portionSize:null,lactose:null,galactose:null,drinkAsPrepared:null,dbLookup:barcode?'not-found':'manual',
     categoryNote:'Please select the correct categories using the information on the package.',from:'Manually entered',updated:null,unit:'g',edited:true};
 }
 function gradeView(p,calc){
@@ -103,26 +106,45 @@ function nutrientRow(label,value,unit,max,more=''){
   return `<div class="nutri-item"><span class="nutri-label">${esc(label)}</span><strong class="nutri-value">${fmt(raw)} ${esc(unit)}</strong><div class="nutri-track" title="Relative bar, not a daily value"><div class="nutri-fill ${isHigh?'warn':''}" style="width:${width}%"></div></div></div>`;
 }
 function missText(missing){if(!missing?.length)return '';return missing.map(s=>esc(s)).join(', ');}
+function ukCard(r){
+  const dots=(r.items||[]).map(x=>`<div class="uk-nutrient"><span class="uk-dot uk-${esc(x.level)}" aria-label="${esc(x.level)}">${x.level==='unknown'?'?':''}</span><span>${esc(x.label)}</span><strong>${x.value===null?'Unknown':fmt(x.value,2)+' g'}</strong></div>`).join('');
+  const label=r.status==='ineligible'?'Not applicable':r.status==='missing'?'Partial result':r.status==='per100'?'Per 100 only · confirm portion':'Calculated per label';
+  return `<div class="rating-card uk-card"><div class="rating-region"><span class="rating-flag">UK</span> UNITED KINGDOM</div><div class="uk-traffic" aria-label="United Kingdom front-of-pack traffic lights">${dots||'<p class="uk-empty">Not applicable</p>'}</div><div class="rating-name">Traffic lights</div><div class="rating-meta">${esc(label)}</div></div>`;
+}
+function sgCard(r){
+  const grade=r.grade || r.range || (r.status==='ineligible'?'—':'?');
+  const title=r.status==='ineligible'?'Beverages only':r.status==='exact'?'Calculated beverage grade':r.status==='uncertain'?'Sweetener status unknown':r.status==='needs-preparation'?'Confirm prepared drink values':'Not enough verified data';
+  return `<div class="rating-card sg-card"><div class="rating-region"><span class="rating-flag">SG</span> SINGAPORE</div><div class="rating-value ${r.grade?'grade-'+r.grade.toLowerCase():r.range?'range':'unavailable'}">${esc(grade)}</div><div class="rating-name">Nutri-Grade</div><div class="rating-meta">${esc(title)}</div><div class="rating-mini-note">Applies to beverages only</div></div>`;
+}
+function lookupNotice(p){
+  if(p.dbLookup==='not-found')return `<div class="result-warning" role="alert"><strong>Barcode read — product not identified.</strong><span>Open Food Facts has no matching entry for ${esc(p.barcode)}. Any country rating will remain unavailable until you provide the missing nutrition label. This is <em>not</em> a poor health rating.</span></div>`;
+  if(p.dbLookup==='unavailable')return `<div class="result-warning" role="alert"><strong>Database lookup failed.</strong><span>We could not verify a match. Scores cannot be assigned without nutritional data. Try again or enter the label manually.</span></div>`;
+  if(p.dbLookup==='manual')return `<div class="result-warning"><strong>Manual product.</strong><span>The food details are user-supplied. Confirm the label before relying on any calculated rating.</span></div>`;
+  return '';
+}
 function renderCurrent(){
   const el=$('#result-container');const p=current;if(!p){el.innerHTML='';$('#first-time').hidden=false;return;}
   $('#first-time').hidden=true;
-  const nut=calculateNutriScore(p),hsr=calculateHSR(p),nView=gradeView(p,nut),hView=starsView(hsr);
+  const nut=calculateNutriScore(p),hsr=calculateHSR(p),uk=calculateUKTraffic(p),sg=calculateSingaporeGrade(p),nView=gradeView(p,nut),hView=starsView(hsr);
   const saved=existing(p), image=safeImage(p.image);
   const unresolved=[...(p.edited?nut.missing||[]:[]),...(hsr.missing||[])];
   const uniqueMissing=[...new Set(unresolved)];
+  const regionalMessages=[uk.warning,uk.missing?.length?`UK traffic lights missing ${uk.missing.join(', ')}.`:null,sg.status==='ineligible'?null:sg.status==='exact'?null:sg.reason].filter(Boolean);
   const productBarcode=/^\d{8,14}$/.test(p.barcode)?p.barcode:null;
   const details=esc(p.ingredients).slice(0,900);
   const isEstimated=nView.status==='range'||nView.status==='stable'||hView.status==='range'||hView.status==='stable';
   const categoryWarning=esc(p.categoryNote || 'Please check the product categories for both algorithms.');
   el.innerHTML=`
     <div class="result-header"><div><span class="section-overline">02 / YOUR RESULT</span><h2>Inside the label</h2></div><div class="result-actions"><button type="button" id="favorite-btn" class="outline-btn ${saved?.favorite?'faved':''}" aria-pressed="${saved?.favorite?'true':'false'}"><svg class="icon"><use href="#i-heart"/></svg>${saved?.favorite?'Saved':'Save'}</button><button type="button" id="edit-btn-top" class="outline-btn"><svg class="icon"><use href="#i-pencil"/></svg>Edit</button></div></div>
+    ${lookupNotice(p)}
     <div class="result-main"><article class="product-panel"><div class="product-photo">${image?`<img src="${image}" alt="Product packaging" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:`<div class="product-placeholder">◈<span>Product image unavailable</span></div>`}</div><div class="product-ident"><span class="product-brand">${esc(p.brand||'PRODUCT DETAILS')}</span><h3 class="product-name">${esc(p.name)}</h3>${p.quantity?`<span class="product-quantity">${esc(p.quantity)}</span>`:''}${productBarcode?`<div class="barcode-pill">▥ ${esc(p.barcode)}</div>`:''}${productBarcode?`<a class="openfood-link" href="https://world.openfoodfacts.org/product/${encodeURIComponent(productBarcode)}" target="_blank" rel="noopener noreferrer">See on Open Food Facts ↗</a>`:''}</div></article>
-    <article class="scores-panel"><div class="panel-kicker"><span class="kicker-line"></span> TWO WAYS TO LOOK AT IT</div><div class="ratings-grid">
+    <article class="scores-panel"><div class="panel-kicker"><span class="kicker-line"></span> FOUR INDEPENDENT PERSPECTIVES</div><div class="ratings-grid">
       <div class="rating-card"><div class="rating-region"><span class="rating-flag">FR</span> FRANCE</div><div class="rating-value ${/^[A-E]$/.test(nView.value)?`grade-${nView.value.toLowerCase()}`:nView.status==='range'?'range':'unavailable'}">${esc(nView.value)}</div><div class="rating-name">Nutri-Score</div><div class="rating-meta">${esc(nView.label)}</div>${/^[A-E]$/.test(nView.value)?gradeScale(nView.value):''}</div>
       <div class="rating-card hsr-card"><div class="rating-region"><span class="rating-flag">AU</span> AUSTRALIA</div><div class="rating-value ${hView.stars!==null?'hsr':hView.status==='range'?'range':'unavailable'}">${esc(hView.value)}${hView.stars!==null?'<small>/ 5</small>':''}</div>${starsHtml(hView.stars)}<div class="rating-name">Health Star Rating</div><div class="rating-meta">${esc(hView.label)}</div></div>
-    </div><div class="rating-details"><div class="confidence ${uniqueMissing.length?'warning':''}"><svg class="icon"><use href="#i-info"/></svg><span>${uniqueMissing.length?`Incomplete data: ${missText(uniqueMissing)}. The app displays calculated ranges rather than assuming these are zero.`:(isEstimated?'Some values are unknown; the displayed rating remains stable across their possible values.':'Scores are available for the supplied information; confirm the category and packaging values.')}</span></div><div class="confidence"><svg class="icon"><use href="#i-info"/></svg><span>${categoryWarning}</span></div></div><div class="edit-cta"><span>Details don't match the packaging?<br>Correct them for a more reliable score.</span><button type="button" class="mini-primary" id="edit-btn">Edit nutrition <span aria-hidden="true">↗</span></button></div></article></div>
+      ${ukCard(uk)}${sgCard(sg)}
+    </div><div class="rating-details"><div class="confidence ${uniqueMissing.length?'warning':''}"><svg class="icon"><use href="#i-info"/></svg><span>${uniqueMissing.length?`Incomplete data: ${missText(uniqueMissing)}. The app displays calculated ranges rather than assuming these are zero.`:(isEstimated?'Some values are unknown; the displayed rating remains stable across their possible values.':'Scores are available for the supplied information; confirm the category and packaging values.')}</span></div>${regionalMessages.map(x=>`<div class="confidence warning"><svg class="icon"><use href="#i-info"/></svg><span>${esc(x)}</span></div>`).join('')}<div class="confidence"><svg class="icon"><use href="#i-info"/></svg><span>${categoryWarning}</span></div></div><div class="edit-cta"><span>Details don't match the packaging?<br>Correct them for a more reliable score.</span><button type="button" class="mini-primary" id="edit-btn">Edit nutrition <span aria-hidden="true">↗</span></button></div></article></div>
     <div class="result-bottom"><article class="nutrition-panel"><div class="panel-kicker"><span class="kicker-line"></span> THE NUMBERS</div><h3 class="small-heading">What's in 100 ${esc(p.unit==='ml'?'mL':'g')}?</h3><p class="description">Nutrients are normalised per 100 ${esc(p.unit==='ml'?'mL':'g')}. Bars provide relative context, not daily allowances.</p><div class="nutri-list">${nutrientRow('Energy',p.energyKj,'kJ',2500)}${nutrientRow('Sugars',p.sugars,'g',50)}${nutrientRow('Saturated fat',p.satFat,'g',20)}${nutrientRow('Salt',p.salt,'g',5)}${nutrientRow('Protein',p.protein,'g',30)}${nutrientRow('Fibre',p.fibre,'g',20)}</div></article>
-    <article class="details-panel"><div class="panel-kicker"><span class="kicker-line"></span> THE BIGGER PICTURE</div><h3 class="small-heading">Beyond the scores</h3><p class="description">The systems don't measure everything — processing and ingredients matter too.</p><div class="details-block"><div class="details-title">NOVA processing group</div><p class="details-text">${p.nova?`Group ${p.nova} · ${['','Unprocessed or minimally processed','Processed culinary ingredients','Processed foods','Ultra-processed foods'][p.nova]}`:'Not recorded in the product database'}${p.nova===4?' · This is independent of nutritional scoring.':''}</p></div><div class="details-block"><div class="details-title">Ingredients</div><p class="details-text">${details||'Not provided. Look at the packaging for ingredient percentages.'}${p.ingredients.length>900?'…':''}</p></div><div class="details-block"><div class="details-title">Additional information</div><p class="details-text">${p.allergens?.length?`Allergens tagged: ${esc(p.allergens.map(t=>String(t).replace(/^en:/,'')).join(', '))}.`: 'Allergens not recorded — this is not an allergen-free guarantee.'} ${p.additives?`${fmt(p.additives,0)} additive tags recorded.`:''}</p></div><div class="details-block"><div class="details-title">Source and method</div><p class="details-text">${p.edited?'Your manually verified/edited values':esc(p.from||'Open Food Facts')}${p.updated?` · Last database update ${formatDate(p.updated)}`:''}. French: ${esc(nView.desc)}. Australia: ${esc(hView.desc)}. <a class="source-link" href="#about" id="methods-link">Read the methodology ↗</a></p></div></article></div>
+    <article class="details-panel"><div class="panel-kicker"><span class="kicker-line"></span> THE BIGGER PICTURE</div><h3 class="small-heading">Beyond the scores</h3><p class="description">The systems don't measure everything — processing and ingredients matter too.</p><div class="details-block"><div class="details-title">NOVA processing group</div><p class="details-text">${p.nova?`Group ${p.nova} · ${['','Unprocessed or minimally processed','Processed culinary ingredients','Processed foods','Ultra-processed foods'][p.nova]}`:'Not recorded in the product database'}${p.nova===4?' · This is independent of nutritional scoring.':''}</p></div><div class="details-block"><div class="details-title">Ingredients</div><p class="details-text">${details||'Not provided. Look at the packaging for ingredient percentages.'}${p.ingredients.length>900?'…':''}</p></div><div class="details-block"><div class="details-title">Additional information</div><p class="details-text">${p.allergens?.length?`Allergens tagged: ${esc(p.allergens.map(t=>String(t).replace(/^en:/,'')).join(', '))}.`: 'Allergens not recorded — this is not an allergen-free guarantee.'} ${p.additives?`${fmt(p.additives,0)} additive tags recorded.`:''}</p></div><div class="details-block"><div class="details-title">Source and method</div><p class="details-text">${p.edited?'Your manually verified/edited values':esc(p.from||'Open Food Facts')}${p.updated?` · Last database update ${formatDate(p.updated)}`:''}. France: ${esc(nView.desc)}. Australia: ${esc(hView.desc)}. UK: ${esc(uk.status)} (${esc(uk.unit||'n/a')}). Singapore: ${esc(sg.grade||sg.range||sg.status)}. <a class="source-link" href="#about" id="methods-link">Read the methodology ↗</a></p></div></article></div>
     <div id="editor-container"></div>`;
   $('#favorite-btn').addEventListener('click',()=>{const entry=existing(p);remember(p,{favorite:!entry?.favorite});renderCurrent();notify(!entry?.favorite?'Added to favourites':'Removed from favourites');});
   const edit=()=>{editorOpen=!editorOpen;renderEditor();if(editorOpen)$('#nutrition-form')?.scrollIntoView({behavior:'smooth',block:'center'});};
@@ -140,9 +162,9 @@ function renderEditor(){
   if(!editorOpen){root.innerHTML='';return;}
   root.innerHTML=`<div class="editor"><div class="editor-top"><div><span class="section-overline">COMPLETE THE LABEL</span><h3>Make the numbers yours.</h3><p>Use values per 100 g or 100 mL, never per serving.</p></div><button class="editor-close" type="button" id="editor-close" aria-label="Close editor"><svg class="icon small"><use href="#i-close"/></svg></button></div>
   <form id="nutrition-form" novalidate>
-    <div class="form-block"><h4>Product</h4><div class="field-grid"><div class="field"><label for="field-name">Product name</label><input id="field-name" name="name" maxlength="180" required value="${esc(current.name)}"></div><div class="field"><label for="field-brand">Brand</label><input id="field-brand" name="brand" maxlength="100" value="${esc(current.brand)}"></div><div class="field"><label for="field-quantity">Pack size</label><input id="field-quantity" name="quantity" maxlength="80" value="${esc(current.quantity)}"></div>${dropdown('unit','Label units',[['g','Per 100 g'],['ml','Per 100 mL']])}</div></div>
-    <div class="form-block"><h4>Nutrition per 100 g / mL</h4><div class="field-grid">${inputField('energyKj','Energy (kJ)','If only kcal: multiply by 4.184')}${inputField('sugars','Total sugars (g)')}${inputField('satFat','Saturated fat (g)')}${inputField('fat','Total fat (g)')}${inputField('salt','Salt (g)','Salt = sodium × 0.0025')}${inputField('sodiumMg','Sodium (mg)','Sodium = salt × 400')}${inputField('protein','Protein (g)')}${inputField('fibre','Dietary fibre (g)')}</div></div>
-    <div class="form-block"><h4>Important category choices</h4><div class="field-grid">${dropdown('nutriCategory','French scoring category',nutriCategories)}${dropdown('hsrCategory','Australian scoring category',hsrCategories)}${inputField('fvlNutri','France: qualifying F/V/L (%)','Fruit, vegetables, legumes only')}${inputField('fvnlHsr','Australia: FVNL (%)','Also includes nuts; read guide')}<div class="field"><label for="field-hsrConcentrated">Australian FVNL form</label><select id="field-hsrConcentrated" name="hsrConcentrated"><option value="false" ${!current.hsrConcentrated?'selected':''}>Non-concentrated</option><option value="true" ${current.hsrConcentrated?'selected':''}>100% concentrated ingredients</option></select><small>Mixed concentrated + fresh require the guide's adjusted percentage.</small></div><div class="field"><label for="field-sweeteners">Non-nutritive sweeteners</label><select id="field-sweeteners" name="sweeteners"><option value="unknown" ${current.sweeteners===null?'selected':''}>Not confirmed</option><option value="true" ${current.sweeteners===true?'selected':''}>Present (beverages)</option><option value="false" ${current.sweeteners===false?'selected':''}>Absent (checked label)</option></select><small>Important for French drink scores.</small></div></div><p class="form-note">The French and Australian fruit/vegetable percentages differ. For example, nuts usually do not count for the French general-food FVL component, but can count for Australia. Only enter zero if you have checked that the ingredient does not qualify. HSR dairy-alternative categories have additional calcium and percentage conditions.</p></div>
+    <div class="form-block"><h4>Product</h4><div class="field-grid"><div class="field"><label for="field-name">Product name</label><input id="field-name" name="name" maxlength="180" required value="${esc(current.name)}"></div><div class="field"><label for="field-brand">Brand</label><input id="field-brand" name="brand" maxlength="100" value="${esc(current.brand)}"></div><div class="field"><label for="field-quantity">Pack size</label><input id="field-quantity" name="quantity" maxlength="80" value="${esc(current.quantity)}"></div>${dropdown('unit','Label units',[['g','Per 100 g'],['ml','Per 100 mL']])}${inputField('portionSize','Serving size (g or mL)','For UK large-serving red warnings', {max:2500})}</div></div>
+    <div class="form-block"><h4>Nutrition per 100 g / mL</h4><div class="field-grid">${inputField('energyKj','Energy (kJ)','If only kcal: multiply by 4.184')}${inputField('sugars','Total sugars (g)')}${inputField('satFat','Saturated fat (g)')}${inputField('fat','Total fat (g)')}${inputField('lactose','Declared lactose (g)','Singapore: leave blank if not declared')}${inputField('galactose','Declared galactose (g)','Singapore: leave blank if not declared')}${inputField('salt','Salt (g)','Salt = sodium × 0.0025')}${inputField('sodiumMg','Sodium (mg)','Sodium = salt × 400')}${inputField('protein','Protein (g)')}${inputField('fibre','Dietary fibre (g)')}</div></div>
+    <div class="form-block"><h4>Important category choices</h4><div class="field-grid">${dropdown('nutriCategory','French scoring category',nutriCategories)}${dropdown('hsrCategory','Australian scoring category',hsrCategories)}${inputField('fvlNutri','France: qualifying F/V/L (%)','Fruit, vegetables, legumes only')}${inputField('fvnlHsr','Australia: FVNL (%)','Also includes nuts; read guide')}<div class="field"><label for="field-hsrConcentrated">Australian FVNL form</label><select id="field-hsrConcentrated" name="hsrConcentrated"><option value="false" ${!current.hsrConcentrated?'selected':''}>Non-concentrated</option><option value="true" ${current.hsrConcentrated?'selected':''}>100% concentrated ingredients</option></select><small>Mixed concentrated + fresh require the guide's adjusted percentage.</small></div><div class="field"><label for="field-drinkAsPrepared">Prepared drink data</label><select id="field-drinkAsPrepared" name="drinkAsPrepared"><option value="unknown" ${current.drinkAsPrepared===null||current.drinkAsPrepared===undefined?'selected':''}>Not confirmed</option><option value="true" ${current.drinkAsPrepared===true?'selected':''}>Yes — nutrition per 100 mL as consumed</option><option value="false" ${current.drinkAsPrepared===false?'selected':''}>No — dry or concentrated values</option></select><small>Required for Singapore's beverage grade.</small></div><div class="field"><label for="field-sweeteners">Non-nutritive sweeteners</label><select id="field-sweeteners" name="sweeteners"><option value="unknown" ${current.sweeteners===null?'selected':''}>Not confirmed</option><option value="true" ${current.sweeteners===true?'selected':''}>Present (beverages)</option><option value="false" ${current.sweeteners===false?'selected':''}>Absent (checked label)</option></select><small>Important for French drink scores.</small></div></div><p class="form-note">The French and Australian fruit/vegetable percentages differ. For example, nuts usually do not count for the French general-food FVL component, but can count for Australia. Only enter zero if you have checked that the ingredient does not qualify. HSR dairy-alternative categories have additional calcium and percentage conditions.</p></div>
     <div id="form-error" class="form-error" hidden></div><div class="form-buttons"><button class="text-button" type="button" id="editor-cancel">Cancel</button><button class="save-button" type="submit">Update ratings <span aria-hidden="true">→</span></button></div></form></div>`;
   $('#editor-close').addEventListener('click',closeEditor);$('#editor-cancel').addEventListener('click',closeEditor);
   for(const key of ['salt','sodiumMg']){
@@ -160,15 +182,16 @@ function saveForm(event){
   event.preventDefault();const form=event.currentTarget;const data=new FormData(form);
   const p=structuredClone(current),name=String(data.get('name')||'').trim();
   if(!name){setFormError('Please give the product a name.');return;}
-  for(const key of ['energyKj','sugars','satFat','salt','sodiumMg','protein','fibre','fat','fvlNutri','fvnlHsr']){
+  for(const key of ['energyKj','sugars','satFat','salt','sodiumMg','protein','fibre','fat','fvlNutri','fvnlHsr','portionSize','lactose','galactose']){
     const raw=String(data.get(key)||'').trim();
-    const max=key==='sodiumMg'?40000:key==='energyKj'?5000:100;
+    const max=key==='sodiumMg'?40000:key==='energyKj'?5000:key==='portionSize'?2500:100;
     if(raw && (!Number.isFinite(Number(raw))||Number(raw)<0||Number(raw)>max)){setFormError(`${key} must be between 0 and ${max}, or left blank if unknown.`);return;}
     p[key]=raw===''?null:Number(raw);
   }
   p.name=name;p.brand=String(data.get('brand')||'').trim().slice(0,100);p.quantity=String(data.get('quantity')||'').trim().slice(0,80);
   p.unit=data.get('unit')==='ml'?'ml':'g';p.nutriCategory=String(data.get('nutriCategory'));p.hsrCategory=String(data.get('hsrCategory'));
   p.hsrConcentrated=data.get('hsrConcentrated')==='true';p.sweeteners=data.get('sweeteners')==='unknown'?null:data.get('sweeteners')==='true';
+  p.drinkAsPrepared=data.get('drinkAsPrepared')==='unknown'?null:data.get('drinkAsPrepared')==='true';
   // Persist source data and omit previous reported Nutri-Score after any manual edits.
   p.edited=true;p.offGrade=null;p.from='User-entered / edited nutrition label';p.categoryNote='Category and qualifying ingredient percentages entered by you. Verify with the official eligibility guidance.';
   p.kcal=p.energyKj===null?null:+(p.energyKj/4.184).toFixed(1);
@@ -195,56 +218,137 @@ async function importLibrary(ev){const f=ev.target.files?.[0];if(!f)return;if(f.
   }catch(e){notify('Could not import this backup: '+e.message);}finally{ev.target.value='';}
 }
 
-function loadExternal(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.async=true;script.onload=resolve;script.onerror=()=>{script.remove();reject(Error('Library unavailable'));};document.head.appendChild(script);});}
-async function loadScannerLibrary(){
-  if(window.Html5Qrcode)return;
-  for(const url of ['https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js','https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js']){
-    try{await loadExternal(url);if(window.Html5Qrcode)return;}catch{}
+function loadExternal(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.async=true;script.onload=resolve;script.onerror=()=>{script.remove();reject(Error('Scanner library unavailable'));};document.head.appendChild(script);});}
+function loadScannerLibrary(){
+  if(window.Html5Qrcode)return Promise.resolve();
+  if(!decoderLoadPromise){
+    decoderLoadPromise=(async()=>{
+      for(const url of ['https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js','https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js']){
+        try{await loadExternal(url);if(window.Html5Qrcode)return;}catch{}
+      }
+      throw Error('Camera decoder could not load. Check your internet connection or enter a barcode manually.');
+    })().catch(error=>{decoderLoadPromise=null;throw error;});
   }
-  throw Error('Camera decoder could not be loaded. Check your internet connection.');
+  return decoderLoadPromise;
 }
-async function openCamera(){
-  if(openingCamera||!$('#camera-modal').hidden)return;
-  openingCamera=true;$('#camera-modal').hidden=false;document.body.style.overflow='hidden';$('#camera-hint').textContent='Requesting camera access…';
-  try{
-    if(!navigator.mediaDevices?.getUserMedia)throw Error('Camera scanning requires HTTPS and a supported phone browser.');
-    try{
-      await loadScannerLibrary();
-      const formats=window.Html5QrcodeSupportedFormats;
-      camera=new window.Html5Qrcode('reader',{formatsToSupport:[formats.EAN_13,formats.EAN_8,formats.UPC_A,formats.UPC_E,formats.CODE_128,formats.ITF],verbose:false});
-      await camera.start({facingMode:'environment'},{fps:10,qrbox:(w,h)=>({width:Math.min(290,Math.max(130,w-30)),height:Math.min(150,Math.max(90,h-30))}),aspectRatio:1.3,disableFlip:true},onBarcode,()=>{});
-    }catch(libraryError){
-      if(!('BarcodeDetector' in window))throw libraryError;
-      await startNativeCamera();
-    }
-    $('#camera-hint').textContent='Hold the barcode steady inside the frame. The scan happens automatically.';
-  }catch(e){$('#camera-hint').textContent=`${e.message||'Camera unavailable.'} You can still enter the barcode manually.`;}
-  finally{openingCamera=false;}
+function cameraMessage(message,live='SCANNING…'){
+  $('#camera-hint').textContent=message;
+  $('#camera-live').textContent=live;
+}
+function cameraTrackCapabilities(){
+  try{return camera?.getRunningTrackCapabilities?.()||nativeStream?.getVideoTracks?.()[0]?.getCapabilities?.()||{};}catch{return {};}
+}
+async function applyCameraAdvanced(prop,value){
+  if(camera?.applyVideoConstraints){await camera.applyVideoConstraints({advanced:[{[prop]:value}]});return;}
+  const track=nativeStream?.getVideoTracks()?.[0];if(!track)throw Error('Camera controls unavailable');
+  await track.applyConstraints({advanced:[{[prop]:value}]});
+}
+function showCameraControls(){
+  const caps=cameraTrackCapabilities();
+  $('#camera-torch').hidden=caps.torch!==true;
+  $('#camera-zoom').hidden=!caps.zoom||!Number.isFinite(caps.zoom.max)||caps.zoom.max<=1;
+  torchOn=false;zoomOn=false;
+  $('#camera-torch').textContent='Flashlight off';
+  $('#camera-zoom').textContent='Zoom 2×';
 }
 let scanLock=false;
 async function onBarcode(decoded){
-  const code=String(decoded||'').trim();if(scanLock||!/^\d{8,14}$/.test(code))return;
-  scanLock=true;try{await closeCamera();await lookupBarcode(code);}finally{scanLock=false;}
+  const code=String(decoded||'').replace(/[\s-]/g,'');
+  if(scanLock||!/^[0-9]{8,14}$/.test(code))return;
+  scanLock=true;
+  cameraMessage(`Barcode ${code} recognised. Finding your product…`,'FOUND ✓');
+  try{navigator.vibrate?.(80);}catch{}
+  try{await closeCamera();await lookupBarcode(code);}finally{scanLock=false;}
 }
-async function startNativeCamera(){
-  if(!('BarcodeDetector' in window))throw Error('No barcode detector available');
-  nativeStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-  const video=document.createElement('video');video.setAttribute('playsinline','');video.muted=true;video.autoplay=true;video.id='native-video';video.srcObject=nativeStream;$('#reader').replaceChildren(video);await video.play();
-  const formats=['ean_13','ean_8','upc_a','upc_e','code_128','itf'];const supported=await window.BarcodeDetector.getSupportedFormats();const detector=new window.BarcodeDetector({formats:formats.filter(s=>supported.includes(s))});
-  async function frame(){if(!nativeStream)return;try{const hits=await detector.detect(video);if(hits.length){await onBarcode(hits[0].rawValue);return;}}catch{}nativeFrame=setTimeout(frame,200);}
-  frame();
+async function startNativeCamera(session){
+  if(typeof window.BarcodeDetector!=='function')return false;
+  const wanted=['ean_13','ean_8','upc_a','upc_e','code_128','itf'];
+  const supported=await window.BarcodeDetector.getSupportedFormats();
+  const formats=wanted.filter(f=>supported.includes(f));
+  if(!formats.includes('ean_13')&&!formats.includes('ean_8'))return false;
+  const detector=new window.BarcodeDetector({formats});
+  nativeStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+  if(session!==cameraSession){nativeStream.getTracks().forEach(t=>t.stop());nativeStream=null;return true;}
+  const video=document.createElement('video');video.setAttribute('playsinline','');video.muted=true;video.autoplay=true;video.id='native-video';video.srcObject=nativeStream;
+  $('#reader').replaceChildren(video);await video.play();
+  if(session!==cameraSession){nativeStream?.getTracks().forEach(t=>t.stop());nativeStream=null;return true;}
+  // Native platform decoding avoids a large download when supported by the browser.
+  const frame=async()=>{
+    if(session!==cameraSession||!nativeStream)return;
+    if(video.readyState<2){nativeFrame=setTimeout(frame,130);return;}
+    try{const hits=await detector.detect(video);if(hits.length){await onBarcode(hits[0].rawValue);return;}}catch{}
+    if(session===cameraSession)nativeFrame=setTimeout(frame,130);
+  };
+  frame();return true;
+}
+async function startHtml5Camera(session){
+  await loadScannerLibrary();
+  if(session!==cameraSession)return;
+  const formats=window.Html5QrcodeSupportedFormats;
+  const instance=new window.Html5Qrcode('reader',{formatsToSupport:[formats.EAN_13,formats.EAN_8,formats.UPC_A,formats.UPC_E,formats.CODE_128,formats.ITF],verbose:false});
+  camera=instance;
+  await instance.start({facingMode:'environment'}, {
+    fps:15,aspectRatio:1.7,disableFlip:true,
+    qrbox:(w,h)=>({width:Math.max(130,Math.min(w-18,440)),height:Math.max(90,Math.min(h-24,180))})
+  },onBarcode,()=>{});
+  if(session!==cameraSession){try{await instance.stop();}catch{}try{instance.clear();}catch{}if(camera===instance)camera=null;}
+}
+async function openCamera(){
+  if(openingCamera||!$('#camera-modal').hidden)return;
+  const session=++cameraSession;
+  openingCamera=true;$('#camera-modal').hidden=false;
+  document.body.style.overflow='hidden';
+  $('#reader').replaceChildren();$('#camera-torch').hidden=true;$('#camera-zoom').hidden=true;
+  cameraMessage('Allow camera permission. Hold the entire barcode inside the frame.','STARTING…');
+  try{
+    if(!navigator.mediaDevices?.getUserMedia)throw Error('Camera scanning needs HTTPS and a compatible browser.');
+    let nativeStarted=false;
+    try{nativeStarted=await startNativeCamera(session);}catch{
+      nativeStream?.getTracks().forEach(t=>t.stop());nativeStream=null;$('#reader').replaceChildren();
+    }
+    if(!nativeStarted&&session===cameraSession){
+      cameraMessage('Loading the barcode reader. This happens automatically.','LOADING…');
+      await startHtml5Camera(session);
+    }
+    if(session!==cameraSession)return;
+    showCameraControls();
+    cameraMessage('Scanning automatically. Hold steady until the code is detected.','SCANNING…');
+    scannerTipTimer=setTimeout(()=>{
+      if(session===cameraSession)cameraMessage('Still searching? Move closer, flatten the package, avoid glare or use the 2× zoom button if available.','SCANNING…');
+    },7000);
+  }catch(e){
+    if(session===cameraSession)cameraMessage(`${e.message||'Camera unavailable.'} Type the barcode below instead.`,'CAMERA UNAVAILABLE');
+  }finally{if(session===cameraSession)openingCamera=false;}
 }
 async function closeCamera(){
-  $('#camera-modal').hidden=true;document.body.style.overflow='';clearTimeout(nativeFrame);
-  if(nativeStream){nativeStream.getTracks().forEach(t=>t.stop());nativeStream=null;}
-  if(camera){const old=camera;camera=null;try{await old.stop();}catch{}try{old.clear();}catch{}}
-  $('#reader').replaceChildren();openingCamera=false;
+  ++cameraSession;openingCamera=false;
+  $('#camera-modal').hidden=true;document.body.style.overflow='';
+  clearTimeout(scannerTipTimer);clearTimeout(nativeFrame);
+  $('#camera-torch').hidden=true;$('#camera-zoom').hidden=true;
+  const oldStream=nativeStream;nativeStream=null;
+  if(oldStream)oldStream.getTracks().forEach(t=>t.stop());
+  const oldCamera=camera;camera=null;
+  if(oldCamera){try{await oldCamera.stop();}catch{}try{oldCamera.clear();}catch{}}
+  $('#reader').replaceChildren();
 }
+async function toggleTorch(){
+  const desired=!torchOn;
+  try{await applyCameraAdvanced('torch',desired);torchOn=desired;$('#camera-torch').textContent=desired?'Flashlight on':'Flashlight off';}
+  catch{notify('Flashlight control is not supported on this camera.');$('#camera-torch').hidden=true;}
+}
+async function toggleZoom(){
+  const caps=cameraTrackCapabilities(),min=Number(caps.zoom?.min??1),max=Number(caps.zoom?.max??1);
+  const desired=zoomOn?Math.max(min,1):Math.min(max,2);
+  try{await applyCameraAdvanced('zoom',desired);zoomOn=!zoomOn;$('#camera-zoom').textContent=zoomOn?'Zoom 1×':'Zoom 2×';}
+  catch{notify('Zoom control is not supported on this camera.');$('#camera-zoom').hidden=true;}
+}
+
 function bind(){
   $$('[data-tab]').forEach(el=>el.addEventListener('click',()=>switchTab(el.dataset.tab)));
   $('#brand-home').addEventListener('click',e=>{e.preventDefault();switchTab('scan');});
   $('#about-back').addEventListener('click',e=>{e.preventDefault();switchTab('scan');});
   $('#scan-btn').addEventListener('click',openCamera);
+  $('#camera-torch').addEventListener('click',toggleTorch);$('#camera-zoom').addEventListener('click',toggleZoom);
   $('#lookup-btn').addEventListener('click',()=>lookupBarcode($('#barcode-input').value));
   $('#barcode-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();lookupBarcode(e.target.value);}});
   $('#example-btn').addEventListener('click',()=>lookupBarcode(SAMPLE_BARCODE));
@@ -259,5 +363,8 @@ function bind(){
 function init(){bind();switchTab(['scan','saved','about'].includes(location.hash.slice(1))?location.hash.slice(1):'scan',false);
   const code=new URLSearchParams(location.search).get('barcode');if(code)lookupBarcode(code);
   if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  // Pre-warm the non-native decoder, so the first camera scan starts sooner on iOS.
+  if(!('BarcodeDetector' in window)){const preload=()=>loadScannerLibrary().catch(()=>{});
+    if('requestIdleCallback' in window)window.requestIdleCallback(preload,{timeout:3000});else setTimeout(preload,1200);}
 }
 init();

@@ -1,7 +1,7 @@
 {
   "name": "FoodLens — International Food Ratings",
   "short_name": "FoodLens",
-  "description": "Scan products and compare Nutri-Score with Australia's Health Star Rating.",
+  "description": "Scan food barcodes and compare four nutritional labelling systems: France, Australia, UK and Singapore.",
   "start_url": "./",
   "scope": "./",
   "id": "./",

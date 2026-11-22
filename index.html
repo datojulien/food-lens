@@ -7,12 +7,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="FoodLens">
-  <meta name="description" content="Scan a packaged food to compare French Nutri-Score with Australia's Health Star Rating. Private, free and powered by Open Food Facts.">
+  <meta name="description" content="Scan a packaged food to compare France, Australia, UK and Singapore food label ratings. Private, free and powered by Open Food Facts.">
   <title>FoodLens — Know your food</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=2">
+  <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
   <svg xmlns="http://www.w3.org/2000/svg" class="sprite" aria-hidden="true">
@@ -49,22 +49,22 @@
         <div class="hero-copy">
           <span class="eyebrow"><span class="eyebrow-line"></span> A SMARTER WAY TO SHOP</span>
           <h1>A little more <em>clarity</em> in every bite.</h1>
-          <p>One barcode. Two international nutrition ratings. A better understanding of what you're putting in your basket.</p>
-          <div class="hero-foot"><span class="hero-avatar">✳</span> France × Australia, side by side <span class="hero-sep">·</span> No account needed</div>
+          <p>One barcode. Four international nutrition perspectives — without pretending missing data are healthy scores.</p>
+          <div class="hero-foot"><span class="hero-avatar">✳</span> France · Australia · UK · Singapore <span class="hero-sep">·</span> No account needed</div>
         </div>
         <div class="hero-art" aria-hidden="true">
           <div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div>
           <div class="art-card art-card-back"><span class="art-card-top">NUTRI-SCORE</span><span class="art-grade">A</span><span class="art-card-bottom">FRANCE</span></div>
           <div class="art-card art-card-front"><span class="art-card-top">HEALTH STAR RATING</span><span class="art-stars">★★★★<span>★</span></span><span class="art-card-bottom">AUSTRALIA</span></div>
           <div class="art-sparkle sparkle-a">✦</div><div class="art-sparkle sparkle-b">✦</div>
-          <div class="art-caption">TWO LENSES. ONE PRODUCT.</div>
+          <div class="art-caption">FOUR LENSES. ONE PRODUCT.</div>
         </div>
       </div>
 
       <section class="scan-panel" aria-label="Find a product">
-        <div class="scan-panel-heading"><div><span class="section-overline">01 / GET STARTED</span><h2>What are we looking at?</h2><p>Scan a product, or type in the barcode below.</p></div><span class="free-tag"><span class="tiny-dot"></span> Free & private</span></div>
+        <div class="scan-panel-heading"><div><span class="section-overline">01 / GET STARTED</span><h2>What are we looking at?</h2><p>Aim your camera at the barcode. It reads automatically — even short 8-digit codes.</p></div><span class="free-tag"><span class="tiny-dot"></span> Free & private</span></div>
         <div class="scan-actions">
-          <button class="primary-scan" id="scan-btn" type="button"><svg class="icon"><use href="#i-scan"/></svg><span>Scan a barcode</span><svg class="icon small"><use href="#i-arrow"/></svg></button>
+          <button class="primary-scan" id="scan-btn" type="button"><svg class="icon"><use href="#i-scan"/></svg><span>Open fast scanner</span><svg class="icon small"><use href="#i-arrow"/></svg></button>
           <div class="input-wrap"><label class="sr-only" for="barcode-input">Product barcode, 8 to 14 digits</label><svg class="icon barcode-input-icon"><use href="#i-bag"/></svg><input id="barcode-input" type="text" inputmode="numeric" autocomplete="off" maxlength="14" pattern="[0-9]{8,14}" placeholder="Or enter the barcode…"><button class="lookup-btn" id="lookup-btn" type="button" aria-label="Search barcode"><svg class="icon"><use href="#i-arrow"/></svg></button></div>
         </div>
         <div class="panel-footer"><span><span class="footer-icon">◎</span> Works with international products, including Malaysia</span><div class="footer-actions"><button class="subtle-link" type="button" id="manual-btn">Add from a food label</button><button class="subtle-link" type="button" id="example-btn">Try a sample barcode <svg class="icon mini"><use href="#i-arrow"/></svg></button></div></div>
@@ -74,9 +74,9 @@
       <div id="result-container" class="result-container" aria-live="polite"></div>
 
       <section id="first-time" class="intro-grid" aria-label="How FoodLens works">
-        <div class="intro-intro"><span class="section-overline">THE IDEA</span><h2>Good food decisions start with good information.</h2><p>Different countries assess food differently. FoodLens puts both scoring systems next to each other — and tells you when the data aren't sufficient.</p></div>
+        <div class="intro-intro"><span class="section-overline">THE IDEA</span><h2>Good food decisions start with good information.</h2><p>Four approaches, four sets of rules. FoodLens shows each one separately and explains when data are missing or a scheme does not apply.</p></div>
         <div class="intro-tile"><div class="intro-icon">01</div><h3>Find your food</h3><p>Look up real products in the open, community-maintained food database.</p></div>
-        <div class="intro-tile"><div class="intro-icon">02</div><h3>Compare both ratings</h3><p>See Nutri-Score and Health Star Rating with their calculation context.</p></div>
+        <div class="intro-tile"><div class="intro-icon">02</div><h3>Compare four systems</h3><p>French grades, Australian stars, UK traffic lights and Singapore drink grades.</p></div>
         <div class="intro-tile"><div class="intro-icon">03</div><h3>Fill the gaps</h3><p>Read the package and complete any missing nutritional values yourself.</p></div>
       </section>
     </section>
@@ -89,10 +89,12 @@
     </section>
 
     <section class="view" id="view-about" data-view="about" hidden>
-      <div class="page-heading"><span class="section-overline">GOOD TO KNOW</span><h1>See the whole <em>picture.</em></h1><p>The two systems measure nutritional quality differently. Neither can tell you whether a food is right for your overall diet.</p></div>
+      <div class="page-heading"><span class="section-overline">GOOD TO KNOW</span><h1>See the whole <em>picture.</em></h1><p>Each system assesses different attributes. No rating alone can tell you whether a food suits your overall diet.</p></div>
       <div class="about-grid">
         <article class="about-card"><span class="flag-circle">FR</span><h2>Nutri-Score</h2><p>A five-letter A–E indicator, based on the 2023 revised algorithm implemented in France from March 2025. It considers calories, sugars, saturated fat, salt, fibre, protein and qualifying fruit/vegetable/legume content, with different rules for drinks and fats.</p><a href="https://www.santepubliquefrance.fr/en/Nutri-Score" rel="noopener noreferrer" target="_blank">Official method ↗</a></article>
         <article class="about-card"><span class="flag-circle">AU</span><h2>Health Star Rating</h2><p>An Australian and New Zealand system assigning 0.5 to 5 stars. It uses separate thresholds for beverages, milk, other dairy, general foods, oils and high-calcium cheeses. The version used here is Implementation Guide v9 (December 2025).</p><a href="https://www.healthstarrating.gov.au/industry/health-star-rating-system-implementation-guide" rel="noopener noreferrer" target="_blank">Official method ↗</a></article>
+        <article class="about-card"><span class="flag-circle">UK</span><h2>Traffic lights</h2><p>Four separate low/medium/high colours for total fat, saturated fat, sugars and salt. Based on the UK voluntary front-of-pack guidance, November 2016. Large portions can trigger additional red warnings; an unknown portion size is flagged.</p><a href="https://www.gov.uk/government/publications/front-of-pack-nutrition-labelling-guidance" rel="noopener noreferrer" target="_blank">Official UK guidance ↗</a></article>
+        <article class="about-card"><span class="flag-circle">SG</span><h2>Nutri-Grade</h2><p>Singapore's A–D grades are for beverages. The worse of sugar and saturated fat determines the grade; non-sugar sweeteners prevent an A. The beverage must have per-100 mL figures as consumed. Extensions for selected other foods are scheduled for 2028.</p><a href="https://www.hpb.gov.sg/healthy-living/food-and-beverage/nutri-grade/" rel="noopener noreferrer" target="_blank">Official Singapore rules ↗</a></article>
         <article class="about-card"><span class="flag-circle">◎</span><h2>Where data come from</h2><p>Food details come from Open Food Facts, a crowdsourced database. Some information may be missing, inaccurate or from a different formulation. Always check the package before relying on the result.</p><a href="https://world.openfoodfacts.org" rel="noopener noreferrer" target="_blank">Open Food Facts ↗</a></article>
         <article class="about-card"><span class="flag-circle">♡</span><h2>Your privacy</h2><p>Scans and favourites are saved locally in this browser. Product barcode lookups are sent directly to Open Food Facts. No tracking account, analytics or personal server is used. Clearing site data removes local history.</p><a href="#scan" id="about-back">Scan a product ↗</a></article>
       </div>
@@ -103,8 +105,15 @@
   <footer class="site-footer"><div class="shell footer-inner"><span class="footer-brand">foodlens<span>.</span></span><span>Made for curious eaters. Powered by <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer">Open Food Facts</a>.</span><span>Personal tool · Not medical advice</span></div></footer>
   <nav class="bottom-nav" aria-label="Mobile navigation"><button class="mobile-tab selected" data-tab="scan"><svg class="icon"><use href="#i-scan"/></svg><span>Scan</span></button><button class="mobile-tab" data-tab="saved"><svg class="icon"><use href="#i-heart"/></svg><span>Saved</span></button><button class="mobile-tab" data-tab="about"><svg class="icon"><use href="#i-info"/></svg><span>About</span></button></nav>
 
-  <div class="camera-backdrop" id="camera-modal" hidden><div class="camera-dialog" role="dialog" aria-modal="true" aria-labelledby="camera-title"><div class="camera-header"><div><span class="section-overline light-overline">CAMERA SCANNER</span><h2 id="camera-title">Find the barcode</h2></div><button class="round-close" id="camera-close" type="button" aria-label="Close camera"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="camera-window" id="camera-window"><div id="reader"></div><div class="camera-reticle" aria-hidden="true"><span></span><span></span><span></span><span></span></div></div><div class="camera-hint" id="camera-hint" role="status">Allow camera access, then centre the product barcode in the frame.</div><button id="camera-manual" class="camera-secondary" type="button">Enter barcode instead</button></div></div>
+  <div class="camera-backdrop" id="camera-modal" hidden><div class="camera-dialog" role="dialog" aria-modal="true" aria-labelledby="camera-title">
+    <div class="camera-header"><div><span class="section-overline light-overline">LIVE BARCODE READER</span><h2 id="camera-title">Point. Hold. Done.</h2></div><button class="round-close" id="camera-close" type="button" aria-label="Close camera"><svg class="icon"><use href="#i-close"/></svg></button></div>
+    <p class="camera-intro">Put the entire striped barcode inside the green frame. You don't need to take a photo or press another button.</p>
+    <div class="camera-window" id="camera-window"><div id="reader"></div><div class="camera-reticle" aria-hidden="true"><span></span><span></span><span></span><span></span></div><div class="scan-sweep" aria-hidden="true"></div><span class="camera-live" id="camera-live">STARTING CAMERA…</span></div>
+    <div class="camera-hint" id="camera-hint" role="status" aria-live="polite">Starting scanner…</div>
+    <div class="camera-tips"><span>1 · Good lighting</span><span>2 · No glare</span><span>3 · Hold 15–25 cm away</span></div>
+    <div class="camera-controls"><button id="camera-torch" class="camera-secondary" type="button" hidden>Flashlight off</button><button id="camera-zoom" class="camera-secondary" type="button" hidden>Zoom 2×</button><button id="camera-manual" class="camera-secondary" type="button">Type barcode instead</button></div>
+  </div></div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="app.mjs?v=2"></script>
+  <script type="module" src="app.mjs?v=3"></script>
 </body>
 </html>

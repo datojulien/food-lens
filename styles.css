@@ -14,3 +14,57 @@
 @media(max-width:760px){.shell{width:min(100% - 32px,570px)}.header-inner{height:66px}.brand{font-size:25px}.brand-mark{width:29px;height:29px;border-radius:10px}.brand-lens{width:14px;height:14px;border-width:3px}.brand-lens:after{top:9px;left:9px;width:6px}.top-nav{display:none}.header-chip{font-size:8px;letter-spacing:.6px;padding:7px 9px}.hero{grid-template-columns:1fr;height:auto;min-height:0;margin-top:14px}.hero-copy{padding:33px 25px 24px}.eyebrow{font-size:8px}.hero h1{font-size:49px;margin:13px 0 11px;letter-spacing:-1.5px}.hero-copy>p{font-size:12px;line-height:1.8}.hero-foot{margin-top:23px;font-size:9px;white-space:normal}.hero-art{height:225px}.orbit-one{left:50%;top:-92px;transform:translateX(-50%)}.orbit-two{left:50%;top:-152px;transform:translateX(-50%)}.art-card-back{top:13px;left:calc(50% - 145px);width:150px;height:180px;padding:13px}.art-card-front{top:42px;left:calc(50% - 7px);width:176px;height:151px;padding:14px}.art-grade{font-size:87px}.art-stars{font-size:24px}.art-card-top{font-size:7px}.art-card-bottom{font-size:7px}.art-caption{bottom:10px;font-size:7px}.scan-panel{padding:24px 20px 19px;margin-top:15px}.scan-panel-heading h2{font-size:27px}.scan-panel-heading p{font-size:11px}.free-tag{display:none}.scan-actions{grid-template-columns:1fr;gap:9px;margin-top:20px}.primary-scan{height:56px}.input-wrap input{height:55px}.lookup-btn{height:39px;width:39px}.panel-footer{align-items:start;flex-direction:column;gap:10px;margin-top:15px;font-size:10px}.subtle-link{padding:0}.footer-actions{gap:12px}.intro-grid{margin:36px 0 65px;grid-template-columns:1fr;gap:10px}.intro-intro{grid-column:auto;margin-bottom:10px}.intro-tile{padding:17px;display:grid;grid-template-columns:43px 1fr;column-gap:12px}.intro-icon{grid-row:1/3}.intro-tile h3{margin:0}.intro-tile p{margin:3px 0 0}.result-main{grid-template-columns:1fr;gap:12px}.product-panel{display:grid;grid-template-columns:125px 1fr;gap:15px;padding:14px}.product-photo{height:150px}.product-ident{margin:0;align-self:center}.product-name{font-size:18px}.product-quantity{font-size:10px}.barcode-pill{font-size:10px;padding:5px 8px;margin-top:10px}.openfood-link{margin-top:6px}.scores-panel{padding:17px}.rating-card{min-height:205px;padding:14px 12px}.rating-value{font-size:62px}.rating-value.range{font-size:29px}.rating-value.hsr{font-size:36px}.rating-region{font-size:9px}.rating-flag{width:22px;height:22px}.stars-row{font-size:22px}.rating-card .rating-name{font-size:10px}.rating-meta{font-size:9px}.result-bottom{grid-template-columns:1fr;gap:12px;margin-top:12px}.nutrition-panel,.details-panel{padding:20px}.result-header h2{font-size:25px}.result-header{align-items:flex-end}.outline-btn{height:36px;padding:0 9px;font-size:11px}.outline-btn .icon{width:16px;height:16px}.field-grid{grid-template-columns:1fr 1fr;gap:11px}.editor-top{padding:19px}.editor form{padding:17px}.page-heading{padding:38px 0 25px}.page-heading h1{letter-spacing:-1.4px;font-size:45px}.about-grid{grid-template-columns:1fr;gap:12px}.about-card{padding:22px}.library-toolbar{align-items:flex-start}.saved-grid{grid-template-columns:1fr}.import-row{flex-direction:column}.footer-inner{height:auto;padding:19px 0 86px;flex-wrap:wrap}.footer-brand{width:100%}.footer-inner span:last-child{display:none}.bottom-nav{display:flex;position:fixed;left:0;right:0;bottom:0;height:calc(64px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:#fffdfa;box-shadow:0 -6px 28px rgba(20,47,34,.07);border-top:1px solid #e6ece3;z-index:20;justify-content:space-around}.mobile-tab{flex:1;border:0;background:none;color:#9baa9d;display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;font-size:10px;font-weight:700}.mobile-tab.selected{color:#2e6f48}.mobile-tab.selected .icon{stroke-width:2.2}.camera-dialog{padding:18px}.camera-window{min-height:285px}.camera-window #reader{min-height:285px}.camera-reticle{inset:70px 34px}.toast{bottom:85px;max-width:92%;white-space:normal;text-align:center}}
 @media(max-width:390px){.header-chip{display:none}.hero h1{font-size:43px}.rating-value.hsr{font-size:31px}.stars-row{font-size:19px}.scores-panel{padding:13px}.ratings-grid{gap:8px}.rating-card{padding:12px 9px}.rating-value{font-size:59px}}
 @media(prefers-reduced-motion:reduce){:root{scroll-behavior:auto}*,*:after,*:before{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* v3: four independent rating systems and prominent data-quality notices */
+.ratings-grid{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:13px}
+.rating-card.uk-card{background:#fff8ee;border-color:#f0e7d7}
+.rating-card.sg-card{background:#f2f5ff;border-color:#e1e7f4}
+.uk-traffic{display:grid;gap:7px;margin:17px 0 12px}
+.uk-nutrient{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:7px;font-size:11px;color:#3e5247}
+.uk-nutrient strong{font-size:10px;color:#556a5d;font-weight:700;white-space:nowrap}
+.uk-dot{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:800;color:#333;border:1px solid rgba(0,0,0,.08)}
+.uk-green{background:#6ab65c}.uk-amber{background:#ffc34f}.uk-red{background:#f36555}.uk-unknown{background:#eaebe6;color:#5d685f}
+.uk-empty{margin:24px 0;color:#76887c;font-size:12px}
+.uk-card .rating-name,.sg-card .rating-name{margin-top:auto}
+.sg-card .rating-mini-note{font-size:9px;color:#718296;margin-top:9px}
+.sg-card .rating-value.grade-a{color:#078451}.sg-card .rating-value.grade-b{color:#8eaf2e}.sg-card .rating-value.grade-c{color:#c38f22}.sg-card .rating-value.grade-d{color:#b7553c}
+.result-warning{display:flex;flex-direction:column;gap:5px;margin:0 0 16px;border:1px solid #e6bd77;background:#fff6e7;color:#705221;padding:16px 19px;border-radius:14px;line-height:1.55}
+.result-warning strong{font-size:14px}.result-warning span{font-size:12px}
+/* Scanner: large framing area, plain-language feedback and accessible controls */
+.camera-dialog{max-width:570px}
+.camera-header h2{margin-bottom:7px}
+.camera-intro{font-size:13px;line-height:1.55;color:#d4e4d7;margin:3px 0 15px}
+.camera-window{min-height:300px}
+.camera-window #reader{min-height:300px}
+.camera-window #reader video{width:100%!important;max-height:450px;object-fit:cover}
+.camera-reticle{inset:23% 5%;border-radius:8px}
+.camera-reticle span{width:34px;height:34px;border-width:4px;filter:drop-shadow(0 0 4px rgba(8,35,23,.6))}
+.camera-live{position:absolute;top:9px;left:11px;color:#f7ffee;background:rgba(15,52,31,.77);border-radius:99px;padding:5px 11px;font-size:10px;letter-spacing:.9px;font-weight:800;pointer-events:none}
+.camera-live:before{content:'●';font-size:10px;color:#b8e879;margin-right:6px}
+.scan-sweep{position:absolute;top:40%;left:8%;right:8%;height:2px;background:rgba(191,252,119,.72);box-shadow:0 0 12px #bcf590;pointer-events:none;animation:scan-sweep 2.2s ease-in-out infinite alternate}
+@keyframes scan-sweep{from{top:35%}to{top:68%}}
+.camera-hint{margin:14px 0 11px;min-height:30px;line-height:1.5;font-size:13px}
+.camera-tips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;color:#d1e6d6;font-size:10px;margin:0 0 14px}
+.camera-tips span{border:1px solid #597e67;border-radius:99px;padding:4px 8px}
+.camera-controls{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap}
+.camera-controls .camera-secondary{margin:0;min-height:40px;font-size:11px;padding:9px 12px}
+.camera-controls .camera-secondary[hidden]{display:none!important}
+#camera-manual{background:#e5f4d1;color:#1d4532;border-color:#e5f4d1}
+@media(max-width:760px){
+  .hero{display:none}
+  .scan-panel{margin-top:14px}
+  .camera-backdrop{padding:0;align-items:stretch}
+  .camera-dialog{width:100%;max-width:none;min-height:100dvh;border-radius:0;padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));display:flex;flex-direction:column;justify-content:center;overflow-y:auto}
+  .camera-window,.camera-window #reader{min-height:min(49dvh,390px)}
+  .camera-window #reader video{min-height:min(49dvh,390px)}
+  .camera-reticle{inset:26% 4%}
+  .camera-hint{font-size:13px}
+  .ratings-grid{gap:9px}
+  .uk-nutrient{grid-template-columns:15px 1fr;gap:3px 6px;font-size:10px}
+  .uk-nutrient strong{grid-column:2;font-size:9px;opacity:.85}
+  .uk-dot{width:14px;height:14px}
+  .uk-traffic{gap:5px;margin:13px 0 9px}
+  .rating-card.uk-card{min-height:205px}
+  .result-warning{padding:14px}
+}
+@media(prefers-reduced-motion:reduce){.scan-sweep{animation:none}}
