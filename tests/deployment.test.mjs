@@ -11,7 +11,7 @@ const scoresFile=file('scores.mjs');
 
 test('deployed scoring module exports every required named function',async()=>{
   assert.match(app,/import \* as scoring from ['"]\.\/scores\.mjs\?v=\d+['"]/);
-  const mod=await import(new URL('../scores.mjs?v=8',import.meta.url).href);
+  const mod=await import(new URL('../scores.mjs?v=9',import.meta.url).href);
   for(const key of ['calculateNutriScore','calculateHSR','normalizeOpenFoodFacts','calculateUKTraffic','calculateSingaporeGrade','numberOrNull']) {
     assert.equal(typeof mod[key],'function',`${key} must be exported`);
   }
@@ -49,4 +49,14 @@ test('national graphics stay visible without misleading numeric rating',()=>{
   assert.match(app,/function ukCard\(r,p\)/);
   assert.match(app,/function sgCard\(r,p\)/);
   assert.match(app,/grade\?`<div class=\\?"sg-nutrigrade-mark/);
+});
+
+// Regression test for the blue Health Star Rating cap in the user's reference.
+test('Australian Health Star emblem fills the upper dome, including behind every star',()=>{
+  // The cap apex (y=28) is above the top star (y=60, tip at y=39),
+  // unlike the older y=71 dome that left a large white gap and cropped stars.
+  assert.match(app,/M29 209 C29 109 87\\.6 28 160 28 C232\\.4 28 291 109 291 209 Z/);
+  assert.match(app,/const places=\\[\\[62,167\\],\\[91,99\\],\\[160,60\\],\\[229,99\\],\\[258,167\\]\\]/);
+  assert.match(app,/cy=\\\"155\\\" r=\\\"54\\\" fill=\\\"#fff\\\"/);
+  assert.doesNotMatch(app,/M22 204 A138 138/);
 });

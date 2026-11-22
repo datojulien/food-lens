@@ -28,4 +28,4 @@ jobs:
           node --check scores.mjs
           node --check regional.mjs
           node --check sw.js
-          node -e "import('./scores.mjs?v=8').then(m => { for (const name of ['calculateNutriScore','calculateHSR','calculateUKTraffic','calculateSingaporeGrade']) if (typeof m[name] !== 'function') throw Error(name + ' export missing'); })"
+          node -e "import('./scores.mjs?v=9').then(m => { for (const name of ['calculateNutriScore','calculateHSR','calculateUKTraffic','calculateSingaporeGrade']) if (typeof m[name] !== 'function') throw Error(name + ' export missing'); })"

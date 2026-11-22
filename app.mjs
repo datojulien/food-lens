@@ -1,4 +1,4 @@
-import * as scoring from './scores.mjs?v=8';
+import * as scoring from './scores.mjs?v=9';
 const {calculateNutriScore,calculateHSR,normalizeOpenFoodFacts,nutriCategories,hsrCategories,numberOrNull}=scoring;
 // A cached old scoring module must not make the whole site fail at import time.
 const regionalEngineOutdated = typeof scoring.calculateUKTraffic!=='function' || typeof scoring.calculateSingaporeGrade!=='function';
@@ -110,7 +110,7 @@ function hsrBadgeHtml(stars,{status='exact'}={}){
   // The emblem is always visible. Outline-only stars and ?/N/A mean NO numeric rating was awarded.
   // Never fill five stars for an unknown result: that would imply a verified five-star rating.
   const valid=typeof stars==='number' && Number.isFinite(stars) && stars>=.5 && stars<=5;
-  const places=[[47,167],[91,106],[160,71],[229,106],[273,167]];
+  const places=[[62,167],[91,99],[160,60],[229,99],[258,167]];
   const glyphs=places.map(([x,y],i)=>{
     const points=starPoints(x,y);
     if(!valid)return `<polygon points="${points}" fill="none" stroke="#fff" stroke-width="3"/>`;
@@ -123,10 +123,10 @@ function hsrBadgeHtml(stars,{status='exact'}={}){
   const description=valid?`Australian Health Star Rating: ${label} out of 5 stars. Calculated by FoodLens.`:status==='ineligible'?'Australian Health Star Rating: not applicable to this product.':'Australian Health Star Rating: not confirmed. Missing or uncertain nutritional information.';
   return `<svg class="hsr-seal${valid?'':' hsr-seal-unrated'}" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${description}">
     <circle cx="160" cy="160" r="148" fill="#fff" stroke="#1a75bb" stroke-width="1.8"/>
-    <path d="M22 204 A138 138 0 0 1 298 204 L298 209 L22 209 Z" fill="#1a75bb"/>
+    <path d="M29 209 C29 109 87.6 28 160 28 C232.4 28 291 109 291 209 Z" fill="#1a75bb"/>
     ${glyphs}
-    <circle cx="160" cy="166" r="58" fill="#fff"/>
-    <text x="160" y="192" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="${label==='N/A'?49:label.includes('.')?59:82}" font-weight="800" letter-spacing="-3" fill="#1a75bb">${label}</text>
+    <circle cx="160" cy="155" r="54" fill="#fff"/>
+    <text x="160" y="190" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="${label==='N/A'?49:label.includes('.')?59:82}" font-weight="800" letter-spacing="-3" fill="#1a75bb">${label}</text>
     <text x="160" y="246" text-anchor="middle" font-family="Impact,'Arial Narrow',Arial,sans-serif" font-size="23" font-weight="900" letter-spacing=".2" fill="#1a75bb">HEALTH STAR</text>
     <text x="160" y="273" text-anchor="middle" font-family="Impact,'Arial Narrow',Arial,sans-serif" font-size="25" font-weight="900" letter-spacing=".2" fill="#1a75bb">RATING</text>
   </svg>`;
@@ -414,7 +414,7 @@ function bind(){
 function init(){bind();switchTab(['scan','saved','about'].includes(location.hash.slice(1))?location.hash.slice(1):'scan',false);
   if(regionalEngineOutdated)status('Some ratings are unavailable because an old scoring engine was cached. Reload FoodLens to update.','error');
   const code=new URLSearchParams(location.search).get('barcode');if(code)lookupBarcode(code);
-  if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('./sw.js?v=8',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+  if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('./sw.js?v=9',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
   // Pre-warm the non-native decoder, so the first camera scan starts sooner on iOS.
   if(!('BarcodeDetector' in window)){const preload=()=>loadScannerLibrary().catch(()=>{});
     if('requestIdleCallback' in window)window.requestIdleCallback(preload,{timeout:3000});else setTimeout(preload,1200);}
