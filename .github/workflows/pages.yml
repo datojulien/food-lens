@@ -22,12 +22,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm test
-      - name: Verify JavaScript modules
+      - name: Test national scoring and module compatibility
+        run: npm test
+      - name: Check all published JavaScript modules
         run: |
           node --check app.mjs
           node --check scores.mjs
+          node --check regional.mjs
           node --check sw.js
+          node -e "import('./scores.mjs?v=7').then(m => { for (const name of ['calculateNutriScore','calculateHSR','calculateUKTraffic','calculateSingaporeGrade']) if (typeof m[name] !== 'function') throw Error(name + ' export missing'); })"
 
   deploy:
     needs: test
@@ -40,7 +43,7 @@ jobs:
       - name: Assemble public site
         run: |
           mkdir -p dist/icons
-          cp index.html app.mjs scores.mjs styles.css sw.js manifest.webmanifest .nojekyll dist/
+          cp index.html app.mjs scores.mjs regional.mjs styles.css sw.js manifest.webmanifest .nojekyll dist/
           cp icons/* dist/icons/
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
