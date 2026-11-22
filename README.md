@@ -74,7 +74,7 @@ index.html                 Main app / PWA entry
 styles.css                 Responsive UI
 app.mjs                    Barcode lookup, camera, local data, views
 scores.mjs                 French and Australian scoring engines
-regional.mjs               UK and Singapore scoring engines
+regional.mjs               Compatibility re-exports (UK/SG logic bundled in scores.mjs for hosting)
 sw.js                      Offline app shell, same-origin only
 manifest.webmanifest       Installable PWA manifest
 icons/                     App icon assets

@@ -1,5 +1,4 @@
-import {calculateNutriScore, calculateHSR, normalizeOpenFoodFacts, nutriCategories, hsrCategories, numberOrNull} from './scores.mjs';
-import {calculateUKTraffic, calculateSingaporeGrade} from './regional.mjs';
+import {calculateNutriScore, calculateHSR, normalizeOpenFoodFacts, nutriCategories, hsrCategories, numberOrNull, calculateUKTraffic, calculateSingaporeGrade} from './scores.mjs';
 
 const $=sel=>document.querySelector(sel);
 const $$=sel=>Array.from(document.querySelectorAll(sel));

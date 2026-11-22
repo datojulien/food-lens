@@ -1,5 +1,5 @@
-const CACHE='foodlens-app-v3';
-const ASSETS=['./','./index.html','./styles.css?v=3','./app.mjs?v=3','./scores.mjs','./regional.mjs','./manifest.webmanifest','./icons/favicon.svg','./icons/icon-192.png','./icons/icon-512.png'];
+const CACHE='foodlens-app-v4';
+const ASSETS=['./','./index.html','./styles.css?v=3','./app.mjs?v=4','./scores.mjs','./manifest.webmanifest','./icons/favicon.svg','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(names=>Promise.all(names.filter(name=>name.startsWith('foodlens-app-')&&name!==CACHE).map(name=>caches.delete(name)))).then(()=>self.clients.claim()));});
 self.addEventListener('fetch',event=>{
