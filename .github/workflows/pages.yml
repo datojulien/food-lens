@@ -1,4 +1,4 @@
-name: Test and publish FoodLens
+name: Test FoodLens
 
 on:
   push:
@@ -7,11 +7,9 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: foodlens-pages
+  group: foodlens-tests
   cancel-in-progress: true
 
 jobs:
@@ -31,26 +29,3 @@ jobs:
           node --check regional.mjs
           node --check sw.js
           node -e "import('./scores.mjs?v=8').then(m => { for (const name of ['calculateNutriScore','calculateHSR','calculateUKTraffic','calculateSingaporeGrade']) if (typeof m[name] !== 'function') throw Error(name + ' export missing'); })"
-
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Assemble public site
-        run: |
-          mkdir -p dist/icons
-          cp index.html app.mjs scores.mjs regional.mjs styles.css sw.js manifest.webmanifest .nojekyll dist/
-          cp icons/* dist/icons/
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: dist
-      - name: Publish
-        id: deployment
-        uses: actions/deploy-pages@v4
