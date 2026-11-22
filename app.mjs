@@ -1,4 +1,9 @@
-import {calculateNutriScore, calculateHSR, normalizeOpenFoodFacts, nutriCategories, hsrCategories, numberOrNull, calculateUKTraffic, calculateSingaporeGrade} from './scores.mjs';
+import * as scoring from './scores.mjs?v=7';
+const {calculateNutriScore,calculateHSR,normalizeOpenFoodFacts,nutriCategories,hsrCategories,numberOrNull}=scoring;
+// A cached old scoring module must not make the whole site fail at import time.
+const regionalEngineOutdated = typeof scoring.calculateUKTraffic!=='function' || typeof scoring.calculateSingaporeGrade!=='function';
+const calculateUKTraffic = scoring.calculateUKTraffic || (()=>({status:'missing',items:[],missing:['UK scoring engine'],warning:'Outdated scoring module. Reload FoodLens to restore UK traffic lights.'}));
+const calculateSingaporeGrade = scoring.calculateSingaporeGrade || (()=>({status:'missing',grade:null,reason:'Outdated scoring module. Reload FoodLens to restore Singapore Nutri-Grade.'}));
 
 const $=sel=>document.querySelector(sel);
 const $$=sel=>Array.from(document.querySelectorAll(sel));
@@ -93,27 +98,69 @@ function starsView(calc){
   if(calc.stars!==null && calc.stars!==undefined)return {stars:calc.stars,status:calc.status,value:calc.stars.toFixed(1),label:calc.status==='exact'?'Calculated rating':'Stars stable across possible values',desc:calc.status==='exact'?`HSR v9 · score ${calc.score??'automatic'}`:'Provisional · some inputs missing'};
   return {stars:null,status:'range',value:`${calc.minStars.toFixed(1)}–${calc.maxStars.toFixed(1)}`,label:'Possible star ratings',desc:'Fill in missing inputs to narrow this range'};
 }
-function starsHtml(stars){
-  if(stars===null)return '';
-  let html='';for(let i=1;i<=5;i++)html+=`<span class="${stars>=i?'':stars>=i-.5?'half':'empty'}" aria-hidden="true">★</span>`;
-  return `<div class="stars-row" aria-label="${stars} of 5 stars">${html}</div>`;
+// A badge tailored to each country's published front-of-pack visual language.
+// Interpretive reproductions only: a FoodLens result is not a certified pack label.
+function starPoints(cx,cy,outer=21,inner=9){
+  return Array.from({length:10},(_,i)=>{
+    const angle=-Math.PI/2+i*Math.PI/5, radius=i%2?inner:outer;
+    return `${(cx+radius*Math.cos(angle)).toFixed(1)},${(cy+radius*Math.sin(angle)).toFixed(1)}`;
+  }).join(' ');
 }
-function gradeScale(selected){return `<div class="grade-strip" aria-label="Nutri-Score scale from A to E">${'ABCDE'.split('').map(g=>`<span class="grade-bar ${g.toLowerCase()} ${g===selected?'active':''}">${g}</span>`).join('')}</div>`;}
+function hsrBadgeHtml(stars){
+  if(stars===null || !Number.isFinite(stars) || stars<.5 || stars>5)return '';
+  const places=[[47,167],[91,106],[160,71],[229,106],[273,167]];
+  const glyphs=places.map(([x,y],i)=>{
+    const points=starPoints(x,y),part=Math.min(1,Math.max(0,stars-i));
+    if(part===1)return `<polygon points="${points}" fill="#fff"/>`;
+    if(part===.5)return `<g><defs><clipPath id="hsr-half-${i}"><rect x="${x-23}" y="${y-23}" width="23" height="46"/></clipPath></defs><polygon points="${points}" fill="none" stroke="#fff" stroke-width="3"/><polygon points="${points}" fill="#fff" clip-path="url(#hsr-half-${i})"/></g>`;
+    return `<polygon points="${points}" fill="none" stroke="#fff" stroke-width="3"/>`;
+  }).join('');
+  const label=Number.isInteger(stars)?String(stars):stars.toFixed(1);
+  return `<svg class="hsr-seal" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Australian Health Star Rating: ${label} out of 5 stars. Calculated by FoodLens.">
+    <circle cx="160" cy="160" r="148" fill="#fff" stroke="#1a75bb" stroke-width="1.8"/>
+    <path d="M22 204 A138 138 0 0 1 298 204 L298 209 L22 209 Z" fill="#1a75bb"/>
+    ${glyphs}
+    <circle cx="160" cy="166" r="58" fill="#fff"/>
+    <text x="160" y="192" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="${label.includes('.')?59:82}" font-weight="800" letter-spacing="-3" fill="#1a75bb">${label}</text>
+    <text x="160" y="246" text-anchor="middle" font-family="Impact,'Arial Narrow',Arial,sans-serif" font-size="23" font-weight="900" letter-spacing=".2" fill="#1a75bb">HEALTH STAR</text>
+    <text x="160" y="273" text-anchor="middle" font-family="Impact,'Arial Narrow',Arial,sans-serif" font-size="25" font-weight="900" letter-spacing=".2" fill="#1a75bb">RATING</text>
+  </svg>`;
+}
+function nutriScoreBadgeHtml(grade){
+  if(!/^[A-E]$/.test(grade))return '';
+  return `<div class="nutriscore-mark" role="img" aria-label="French Nutri-Score ${grade}. FoodLens display, not an official product certification.">
+    <div class="nutriscore-wordmark">NUTRI-SCORE</div>
+    <div class="nutriscore-scale">${'ABCDE'.split('').map(g=>`<span class="nutriscore-step ns-${g.toLowerCase()} ${g===grade?'is-selected':''}">${g}</span>`).join('')}</div>
+  </div>`;
+}
 function nutrientRow(label,value,unit,max,more=''){
   const raw=numberOrNull(value),width=raw===null?0:Math.min(100,Math.max(1,raw/max*100));
   const isHigh=(label==='Sugars'&&raw>22.5)||(label==='Saturated fat'&&raw>5)||(label==='Salt'&&raw>1.5);
   return `<div class="nutri-item"><span class="nutri-label">${esc(label)}</span><strong class="nutri-value">${fmt(raw)} ${esc(unit)}</strong><div class="nutri-track" title="Relative bar, not a daily value"><div class="nutri-fill ${isHigh?'warn':''}" style="width:${width}%"></div></div></div>`;
 }
 function missText(missing){if(!missing?.length)return '';return missing.map(s=>esc(s)).join(', ');}
-function ukCard(r){
-  const dots=(r.items||[]).map(x=>`<div class="uk-nutrient"><span class="uk-dot uk-${esc(x.level)}" aria-label="${esc(x.level)}">${x.level==='unknown'?'?':''}</span><span>${esc(x.label)}</span><strong>${x.value===null?'Unknown':fmt(x.value,2)+' g'}</strong></div>`).join('');
-  const label=r.status==='ineligible'?'Not applicable':r.status==='missing'?'Partial result':r.status==='per100'?'Per 100 only · confirm portion':'Calculated per label';
-  return `<div class="rating-card uk-card"><div class="rating-region"><span class="rating-flag">UK</span> UNITED KINGDOM</div><div class="uk-traffic" aria-label="United Kingdom front-of-pack traffic lights">${dots||'<p class="uk-empty">Not applicable</p>'}</div><div class="rating-name">Traffic lights</div><div class="rating-meta">${esc(label)}</div></div>`;
+function ukCard(r,p){
+  if(r.status==='ineligible')return `<div class="rating-card uk-card"><div class="rating-region"><span class="rating-flag">UK</span> UNITED KINGDOM</div><div class="scheme-unavailable" role="status">Not applicable</div><div class="rating-name">UK front-of-pack traffic lights</div><div class="rating-meta">${esc(r.reason||'Not rated for this product')}</div></div>`;
+  const portion=numberOrNull(p.portionSize), unit=r.unit==='ml'?'mL':'g';
+  const basis=portion!==null?`Per serving (${fmt(portion,0)} ${unit})`:`Per 100 ${unit}`;
+  const amount=value=>value===null?'?':`${fmt(portion!==null?value*portion/100:value,1)}g`;
+  const tiles=(r.items||[]).map(x=>`<div class="uk-fop-tile uk-fop-${esc(x.level)}" aria-label="${esc(x.label)}: ${esc(x.level)}">
+    <span class="uk-fop-name">${esc(x.label)}</span><strong class="uk-fop-value">${amount(x.value)}</strong><span class="uk-fop-level">${x.level==='unknown'?'UNKNOWN':x.level==='amber'?'MED':' '+x.level.toUpperCase()}</span>
+  </div>`).join('');
+  const message=r.status==='missing'?'Incomplete label':r.status==='per100'?'Portion not recorded':'Calculated for declared portion';
+  return `<div class="rating-card uk-card"><div class="rating-region"><span class="rating-flag">UK</span> UNITED KINGDOM</div><div class="uk-fop-badge" role="group" aria-label="UK nutrition traffic lights. ${esc(basis)}.">
+    <div class="uk-fop-header">${esc(basis)} contains</div><div class="uk-fop-tiles">${tiles}</div>
+    <div class="uk-fop-foot">Red: high · Amber: medium · Green: low</div>
+  </div><div class="rating-name">Front-of-pack traffic lights</div><div class="rating-meta">${esc(message)}</div></div>`;
 }
-function sgCard(r){
-  const grade=r.grade || r.range || (r.status==='ineligible'?'—':'?');
-  const title=r.status==='ineligible'?'Beverages only':r.status==='exact'?'Calculated beverage grade':r.status==='uncertain'?'Sweetener status unknown':r.status==='needs-preparation'?'Confirm prepared drink values':'Not enough verified data';
-  return `<div class="rating-card sg-card"><div class="rating-region"><span class="rating-flag">SG</span> SINGAPORE</div><div class="rating-value ${r.grade?'grade-'+r.grade.toLowerCase():r.range?'range':'unavailable'}">${esc(grade)}</div><div class="rating-name">Nutri-Grade</div><div class="rating-meta">${esc(title)}</div><div class="rating-mini-note">Applies to beverages only</div></div>`;
+function sgCard(r,p){
+  const grade=r.grade, title=r.status==='ineligible'?'Beverages only':r.status==='exact'?'Calculated beverage grade':r.status==='uncertain'?'Sweetener status unknown':r.status==='needs-preparation'?'Confirm prepared drink values':'Not enough verified data';
+  const sugar=numberOrNull(p.sugars);
+  const content=grade?`<div class="sg-nutrigrade-mark" role="img" aria-label="Singapore Nutri-Grade ${grade}. FoodLens calculated display.">
+     <div class="sg-mark-top"><div class="sg-grade-circle sg-colour-${grade.toLowerCase()}">${esc(grade)}</div><div class="sg-mark-info"><strong>NUTRI-GRADE</strong><small>${sugar===null?'Beverage':'Total sugar '+fmt(sugar,1)+' g/100 mL'}</small></div></div>
+     <div class="sg-scale">${'ABCD'.split('').map(g=>`<span class="sg-scale-segment sg-colour-${g.toLowerCase()} ${g===grade?'is-selected':''}">${g}</span>`).join('')}</div>
+   </div>`:`<div class="scheme-unavailable" role="status">${esc(r.range|| (r.status==='ineligible'?'Not applicable':'Not rated'))}</div>`;
+  return `<div class="rating-card sg-card"><div class="rating-region"><span class="rating-flag">SG</span> SINGAPORE</div>${content}<div class="rating-name">Nutri-Grade</div><div class="rating-meta">${esc(title)}</div><div class="rating-mini-note">For qualifying beverages only</div></div>`;
 }
 function lookupNotice(p){
   if(p.dbLookup==='not-found')return `<div class="result-warning" role="alert"><strong>Barcode read — product not identified.</strong><span>Open Food Facts has no matching entry for ${esc(p.barcode)}. Any country rating will remain unavailable until you provide the missing nutrition label. This is <em>not</em> a poor health rating.</span></div>`;
@@ -138,9 +185,9 @@ function renderCurrent(){
     ${lookupNotice(p)}
     <div class="result-main"><article class="product-panel"><div class="product-photo">${image?`<img src="${image}" alt="Product packaging" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:`<div class="product-placeholder">◈<span>Product image unavailable</span></div>`}</div><div class="product-ident"><span class="product-brand">${esc(p.brand||'PRODUCT DETAILS')}</span><h3 class="product-name">${esc(p.name)}</h3>${p.quantity?`<span class="product-quantity">${esc(p.quantity)}</span>`:''}${productBarcode?`<div class="barcode-pill">▥ ${esc(p.barcode)}</div>`:''}${productBarcode?`<a class="openfood-link" href="https://world.openfoodfacts.org/product/${encodeURIComponent(productBarcode)}" target="_blank" rel="noopener noreferrer">See on Open Food Facts ↗</a>`:''}</div></article>
     <article class="scores-panel"><div class="panel-kicker"><span class="kicker-line"></span> FOUR INDEPENDENT PERSPECTIVES</div><div class="ratings-grid">
-      <div class="rating-card"><div class="rating-region"><span class="rating-flag">FR</span> FRANCE</div><div class="rating-value ${/^[A-E]$/.test(nView.value)?`grade-${nView.value.toLowerCase()}`:nView.status==='range'?'range':'unavailable'}">${esc(nView.value)}</div><div class="rating-name">Nutri-Score</div><div class="rating-meta">${esc(nView.label)}</div>${/^[A-E]$/.test(nView.value)?gradeScale(nView.value):''}</div>
-      <div class="rating-card hsr-card"><div class="rating-region"><span class="rating-flag">AU</span> AUSTRALIA</div><div class="rating-value ${hView.stars!==null?'hsr':hView.status==='range'?'range':'unavailable'}">${esc(hView.value)}${hView.stars!==null?'<small>/ 5</small>':''}</div>${starsHtml(hView.stars)}<div class="rating-name">Health Star Rating</div><div class="rating-meta">${esc(hView.label)}</div></div>
-      ${ukCard(uk)}${sgCard(sg)}
+      <div class="rating-card fr-card"><div class="rating-region"><span class="rating-flag">FR</span> FRANCE</div>${/^[A-E]$/.test(nView.value)?nutriScoreBadgeHtml(nView.value):`<div class="scheme-unavailable" role="status">${esc(nView.value==='?'?'Not rated':nView.value)}</div>`}<div class="rating-name">Nutri-Score</div><div class="rating-meta">${esc(nView.label)}</div></div>
+      <div class="rating-card hsr-card"><div class="rating-region"><span class="rating-flag">AU</span> AUSTRALIA</div>${hView.stars!==null?hsrBadgeHtml(hView.stars):`<div class="scheme-unavailable" role="status">${esc(hView.value==='?'?'Not rated':hView.value)}</div>`}<div class="rating-name">Health Star Rating</div><div class="rating-meta">${esc(hView.label)}</div></div>
+      ${ukCard(uk,p)}${sgCard(sg,p)}
     </div><div class="rating-details"><div class="confidence ${uniqueMissing.length?'warning':''}"><svg class="icon"><use href="#i-info"/></svg><span>${uniqueMissing.length?`Incomplete data: ${missText(uniqueMissing)}. The app displays calculated ranges rather than assuming these are zero.`:(isEstimated?'Some values are unknown; the displayed rating remains stable across their possible values.':'Scores are available for the supplied information; confirm the category and packaging values.')}</span></div>${regionalMessages.map(x=>`<div class="confidence warning"><svg class="icon"><use href="#i-info"/></svg><span>${esc(x)}</span></div>`).join('')}<div class="confidence"><svg class="icon"><use href="#i-info"/></svg><span>${categoryWarning}</span></div></div><div class="edit-cta"><span>Details don't match the packaging?<br>Correct them for a more reliable score.</span><button type="button" class="mini-primary" id="edit-btn">Edit nutrition <span aria-hidden="true">↗</span></button></div></article></div>
     <div class="result-bottom"><article class="nutrition-panel"><div class="panel-kicker"><span class="kicker-line"></span> THE NUMBERS</div><h3 class="small-heading">What's in 100 ${esc(p.unit==='ml'?'mL':'g')}?</h3><p class="description">Nutrients are normalised per 100 ${esc(p.unit==='ml'?'mL':'g')}. Bars provide relative context, not daily allowances.</p><div class="nutri-list">${nutrientRow('Energy',p.energyKj,'kJ',2500)}${nutrientRow('Sugars',p.sugars,'g',50)}${nutrientRow('Saturated fat',p.satFat,'g',20)}${nutrientRow('Salt',p.salt,'g',5)}${nutrientRow('Protein',p.protein,'g',30)}${nutrientRow('Fibre',p.fibre,'g',20)}</div></article>
     <article class="details-panel"><div class="panel-kicker"><span class="kicker-line"></span> THE BIGGER PICTURE</div><h3 class="small-heading">Beyond the scores</h3><p class="description">The systems don't measure everything — processing and ingredients matter too.</p><div class="details-block"><div class="details-title">NOVA processing group</div><p class="details-text">${p.nova?`Group ${p.nova} · ${['','Unprocessed or minimally processed','Processed culinary ingredients','Processed foods','Ultra-processed foods'][p.nova]}`:'Not recorded in the product database'}${p.nova===4?' · This is independent of nutritional scoring.':''}</p></div><div class="details-block"><div class="details-title">Ingredients</div><p class="details-text">${details||'Not provided. Look at the packaging for ingredient percentages.'}${p.ingredients.length>900?'…':''}</p></div><div class="details-block"><div class="details-title">Additional information</div><p class="details-text">${p.allergens?.length?`Allergens tagged: ${esc(p.allergens.map(t=>String(t).replace(/^en:/,'')).join(', '))}.`: 'Allergens not recorded — this is not an allergen-free guarantee.'} ${p.additives?`${fmt(p.additives,0)} additive tags recorded.`:''}</p></div><div class="details-block"><div class="details-title">Source and method</div><p class="details-text">${p.edited?'Your manually verified/edited values':esc(p.from||'Open Food Facts')}${p.updated?` · Last database update ${formatDate(p.updated)}`:''}. France: ${esc(nView.desc)}. Australia: ${esc(hView.desc)}. UK: ${esc(uk.status)} (${esc(uk.unit||'n/a')}). Singapore: ${esc(sg.grade||sg.range||sg.status)}. <a class="source-link" href="#about" id="methods-link">Read the methodology ↗</a></p></div></article></div>
@@ -360,8 +407,9 @@ function bind(){
   window.addEventListener('hashchange',()=>{const tab=location.hash.slice(1);if(['scan','saved','about'].includes(tab))switchTab(tab,false);});
 }
 function init(){bind();switchTab(['scan','saved','about'].includes(location.hash.slice(1))?location.hash.slice(1):'scan',false);
+  if(regionalEngineOutdated)status('Some ratings are unavailable because an old scoring engine was cached. Reload FoodLens to update.','error');
   const code=new URLSearchParams(location.search).get('barcode');if(code)lookupBarcode(code);
-  if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('./sw.js?v=7',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
   // Pre-warm the non-native decoder, so the first camera scan starts sooner on iOS.
   if(!('BarcodeDetector' in window)){const preload=()=>loadScannerLibrary().catch(()=>{});
     if('requestIdleCallback' in window)window.requestIdleCallback(preload,{timeout:3000});else setTimeout(preload,1200);}
