@@ -68,3 +68,50 @@
   .result-warning{padding:14px}
 }
 @media(prefers-reduced-motion:reduce){.scan-sweep{animation:none}}
+
+/* 7.0: country-specific front-of-pack visuals. Calculated, not certified logos. */
+.rating-card{overflow:hidden}
+.rating-card.fr-card{background:#f8f9f5;border-color:#e3e8df}
+.rating-card.hsr-card{background:#f4f9fe;border-color:#dbe9f5}
+.rating-card.uk-card{background:#f8f9fa;border-color:#e2e8eb}
+.rating-card.sg-card{background:#f9f9fb;border-color:#e6e5eb}
+.scheme-unavailable{display:flex;align-items:center;justify-content:center;margin:26px auto 20px;padding:10px;min-height:104px;max-width:100%;color:#7d8b82;text-align:center;font-weight:700;font-size:15px;background:#f0f2ef;border:1px dashed #cbd4cd;border-radius:12px;overflow-wrap:anywhere}
+.nutriscore-mark{align-self:center;width:min(100%,254px);margin:37px auto 24px;display:flex;flex-direction:column;align-items:stretch;gap:3px}
+.nutriscore-wordmark{font-family:Arial,Helvetica,sans-serif;color:#202b24;font-size:clamp(10px,1.4vw,16px);font-weight:900;letter-spacing:1.9px;text-align:center}
+.nutriscore-scale{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:end;gap:1px;min-height:63px;padding:2px 0 4px}
+.nutriscore-step{height:44px;display:flex;align-items:center;justify-content:center;color:white;font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:900;line-height:1;clip-path:polygon(0 0,100% 0,100% 90%,50% 100%,0 90%);transform-origin:bottom;transition:transform .1s}
+.nutriscore-step.ns-a{background:#038141}.nutriscore-step.ns-b{background:#86bc25}.nutriscore-step.ns-c{background:#f4d52f;color:#24271e}.nutriscore-step.ns-d{background:#f39e22}.nutriscore-step.ns-e{background:#e43d26}
+.nutriscore-step.is-selected{height:62px;font-size:37px;filter:drop-shadow(0 2px 3px #0002);outline:2px solid white;position:relative;z-index:1}
+.hsr-seal{display:block;width:min(100%,206px);height:auto;align-self:center;margin:9px auto 6px;flex:none}
+.uk-fop-badge{margin:15px 0 11px;border-radius:10px;border:1px solid #d4dadd;background:#fff;padding:9px;max-width:100%}
+.uk-fop-header{font-size:10px;font-weight:700;color:#313a3d;margin-bottom:6px}
+.uk-fop-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}
+.uk-fop-tile{display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:5px;min-width:0;min-height:88px;color:#fff;padding:8px 3px 7px;border-radius:7px;text-align:center;font-family:Arial,Helvetica,sans-serif}
+.uk-fop-name{font-weight:700;font-size:10px;overflow-wrap:anywhere}
+.uk-fop-value{font-size:13px;font-weight:800;letter-spacing:-.4px;overflow-wrap:anywhere}
+.uk-fop-level{font-size:9px;font-weight:900;letter-spacing:.4px}
+.uk-fop-red{background:#cd1d2b}.uk-fop-amber{background:#dc9b05;color:#222}.uk-fop-green{background:#4f9f45}.uk-fop-unknown{background:#a0a9ab}
+.uk-fop-foot{margin-top:6px;font-size:9px;color:#667173;line-height:1.3}
+.sg-nutrigrade-mark{margin:24px auto 20px;width:min(100%,280px);max-width:100%;font-family:Arial,Helvetica,sans-serif;color:#222}
+.sg-mark-top{display:flex;align-items:stretch;width:100%;min-height:91px;background:#fff;border:3px solid #272424;border-radius:60px;overflow:hidden}
+.sg-grade-circle{display:grid;place-items:center;min-width:91px;width:91px;flex:none;aspect-ratio:1;border:3px solid #262323;border-radius:50%;margin:-3px 0 -3px -3px;color:#fff;font-size:59px;line-height:1;font-weight:900}
+.sg-mark-info{min-width:0;flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:9px 5px 9px 10px;text-align:left}
+.sg-mark-info strong{font-size:13px;letter-spacing:.2px;font-weight:900}
+.sg-mark-info small{font-size:10px;color:#454545;font-weight:700;line-height:1.2}
+.sg-scale{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-top:5px;border:2px solid #282323;border-radius:7px;overflow:hidden}
+.sg-scale-segment{height:31px;display:grid;place-items:center;font-weight:900;font-size:19px;color:#fff;opacity:.73}
+.sg-scale-segment.is-selected{opacity:1;box-shadow:inset 0 -5px 0 #252525;transform:none}
+.sg-colour-a{background:#00864b}.sg-colour-b{background:#80c23e}.sg-colour-c{background:#f4a640}.sg-colour-d{background:#c01e2b}
+.rating-card .rating-name{margin-top:auto}
+@media(max-width:760px){
+  .rating-card.fr-card,.rating-card.hsr-card{min-height:232px}
+  .rating-card.uk-card,.rating-card.sg-card{grid-column:1/-1;min-height:0}
+  .hsr-seal{width:min(100%,155px);margin:9px auto 6px}
+  .nutriscore-mark{margin:38px auto 32px}
+  .nutriscore-step{height:31px;font-size:18px}.nutriscore-step.is-selected{height:46px;font-size:27px}
+  .nutriscore-scale{min-height:48px}
+  .nutriscore-wordmark{font-size:10px;letter-spacing:1.1px}
+  .uk-fop-badge{margin:12px 0}.uk-fop-header{font-size:11px}.uk-fop-tile{min-height:92px}
+  .sg-nutrigrade-mark{margin:18px auto 14px}
+}
+@media(max-width:390px){.hsr-seal{width:min(100%,143px)}.nutriscore-wordmark{font-size:9px}.uk-fop-value{font-size:12px}.uk-fop-name{font-size:9px}}
