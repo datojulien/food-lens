@@ -1,5 +1,5 @@
-const CACHE = 'foodlens-app-v7';
-const ASSETS = ['./','./index.html','./styles.css?v=7','./app.mjs?v=7','./scores.mjs?v=7','./manifest.webmanifest','./icons/favicon.svg','./icons/icon-192.png','./icons/icon-512.png'];
+const CACHE = 'foodlens-app-v8';
+const ASSETS = ['./','./index.html','./styles.css?v=8','./app.mjs?v=8','./scores.mjs?v=8','./manifest.webmanifest','./icons/favicon.svg','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
   const names=await caches.keys();

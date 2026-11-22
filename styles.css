@@ -115,3 +115,11 @@
   .sg-nutrigrade-mark{margin:18px auto 14px}
 }
 @media(max-width:390px){.hsr-seal{width:min(100%,143px)}.nutriscore-wordmark{font-size:9px}.uk-fop-value{font-size:12px}.uk-fop-name{font-size:9px}}
+
+/* v8: keep Australia's recognisable Health Star emblem visible for uncertain/missing ratings. */
+.hsr-visual{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;margin:9px auto 6px;width:100%;flex:1}
+.hsr-visual .hsr-seal{margin:0 auto;width:min(100%,206px)}
+.hsr-unconfirmed{max-width:100%;text-align:center;color:#205b89;background:#e2f0fc;border:1px solid #b7d9f2;border-radius:10px;padding:6px 9px;font-size:11px;font-weight:800;line-height:1.35;overflow-wrap:anywhere}
+.hsr-seal-unrated{filter:none}
+@media(max-width:760px){.hsr-visual .hsr-seal{width:min(100%,155px)}.hsr-unconfirmed{font-size:10px;padding:5px 6px}}
+@media(max-width:390px){.hsr-visual .hsr-seal{width:min(100%,143px)}.hsr-unconfirmed{font-size:9px}}

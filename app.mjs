@@ -1,4 +1,4 @@
-import * as scoring from './scores.mjs?v=7';
+import * as scoring from './scores.mjs?v=8';
 const {calculateNutriScore,calculateHSR,normalizeOpenFoodFacts,nutriCategories,hsrCategories,numberOrNull}=scoring;
 // A cached old scoring module must not make the whole site fail at import time.
 const regionalEngineOutdated = typeof scoring.calculateUKTraffic!=='function' || typeof scoring.calculateSingaporeGrade!=='function';
@@ -106,22 +106,27 @@ function starPoints(cx,cy,outer=21,inner=9){
     return `${(cx+radius*Math.cos(angle)).toFixed(1)},${(cy+radius*Math.sin(angle)).toFixed(1)}`;
   }).join(' ');
 }
-function hsrBadgeHtml(stars){
-  if(stars===null || !Number.isFinite(stars) || stars<.5 || stars>5)return '';
+function hsrBadgeHtml(stars,{status='exact'}={}){
+  // The emblem is always visible. Outline-only stars and ?/N/A mean NO numeric rating was awarded.
+  // Never fill five stars for an unknown result: that would imply a verified five-star rating.
+  const valid=typeof stars==='number' && Number.isFinite(stars) && stars>=.5 && stars<=5;
   const places=[[47,167],[91,106],[160,71],[229,106],[273,167]];
   const glyphs=places.map(([x,y],i)=>{
-    const points=starPoints(x,y),part=Math.min(1,Math.max(0,stars-i));
+    const points=starPoints(x,y);
+    if(!valid)return `<polygon points="${points}" fill="none" stroke="#fff" stroke-width="3"/>`;
+    const part=Math.min(1,Math.max(0,stars-i));
     if(part===1)return `<polygon points="${points}" fill="#fff"/>`;
     if(part===.5)return `<g><defs><clipPath id="hsr-half-${i}"><rect x="${x-23}" y="${y-23}" width="23" height="46"/></clipPath></defs><polygon points="${points}" fill="none" stroke="#fff" stroke-width="3"/><polygon points="${points}" fill="#fff" clip-path="url(#hsr-half-${i})"/></g>`;
     return `<polygon points="${points}" fill="none" stroke="#fff" stroke-width="3"/>`;
   }).join('');
-  const label=Number.isInteger(stars)?String(stars):stars.toFixed(1);
-  return `<svg class="hsr-seal" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Australian Health Star Rating: ${label} out of 5 stars. Calculated by FoodLens.">
+  const label=valid?(Number.isInteger(stars)?String(stars):stars.toFixed(1)):(status==='ineligible'?'N/A':'?');
+  const description=valid?`Australian Health Star Rating: ${label} out of 5 stars. Calculated by FoodLens.`:status==='ineligible'?'Australian Health Star Rating: not applicable to this product.':'Australian Health Star Rating: not confirmed. Missing or uncertain nutritional information.';
+  return `<svg class="hsr-seal${valid?'':' hsr-seal-unrated'}" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${description}">
     <circle cx="160" cy="160" r="148" fill="#fff" stroke="#1a75bb" stroke-width="1.8"/>
     <path d="M22 204 A138 138 0 0 1 298 204 L298 209 L22 209 Z" fill="#1a75bb"/>
     ${glyphs}
     <circle cx="160" cy="166" r="58" fill="#fff"/>
-    <text x="160" y="192" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="${label.includes('.')?59:82}" font-weight="800" letter-spacing="-3" fill="#1a75bb">${label}</text>
+    <text x="160" y="192" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="${label==='N/A'?49:label.includes('.')?59:82}" font-weight="800" letter-spacing="-3" fill="#1a75bb">${label}</text>
     <text x="160" y="246" text-anchor="middle" font-family="Impact,'Arial Narrow',Arial,sans-serif" font-size="23" font-weight="900" letter-spacing=".2" fill="#1a75bb">HEALTH STAR</text>
     <text x="160" y="273" text-anchor="middle" font-family="Impact,'Arial Narrow',Arial,sans-serif" font-size="25" font-weight="900" letter-spacing=".2" fill="#1a75bb">RATING</text>
   </svg>`;
@@ -186,7 +191,7 @@ function renderCurrent(){
     <div class="result-main"><article class="product-panel"><div class="product-photo">${image?`<img src="${image}" alt="Product packaging" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:`<div class="product-placeholder">◈<span>Product image unavailable</span></div>`}</div><div class="product-ident"><span class="product-brand">${esc(p.brand||'PRODUCT DETAILS')}</span><h3 class="product-name">${esc(p.name)}</h3>${p.quantity?`<span class="product-quantity">${esc(p.quantity)}</span>`:''}${productBarcode?`<div class="barcode-pill">▥ ${esc(p.barcode)}</div>`:''}${productBarcode?`<a class="openfood-link" href="https://world.openfoodfacts.org/product/${encodeURIComponent(productBarcode)}" target="_blank" rel="noopener noreferrer">See on Open Food Facts ↗</a>`:''}</div></article>
     <article class="scores-panel"><div class="panel-kicker"><span class="kicker-line"></span> FOUR INDEPENDENT PERSPECTIVES</div><div class="ratings-grid">
       <div class="rating-card fr-card"><div class="rating-region"><span class="rating-flag">FR</span> FRANCE</div>${/^[A-E]$/.test(nView.value)?nutriScoreBadgeHtml(nView.value):`<div class="scheme-unavailable" role="status">${esc(nView.value==='?'?'Not rated':nView.value)}</div>`}<div class="rating-name">Nutri-Score</div><div class="rating-meta">${esc(nView.label)}</div></div>
-      <div class="rating-card hsr-card"><div class="rating-region"><span class="rating-flag">AU</span> AUSTRALIA</div>${hView.stars!==null?hsrBadgeHtml(hView.stars):`<div class="scheme-unavailable" role="status">${esc(hView.value==='?'?'Not rated':hView.value)}</div>`}<div class="rating-name">Health Star Rating</div><div class="rating-meta">${esc(hView.label)}</div></div>
+      <div class="rating-card hsr-card"><div class="rating-region"><span class="rating-flag">AU</span> AUSTRALIA</div><div class="hsr-visual">${hsrBadgeHtml(hView.stars,{status:hView.status})}${hView.status==='range'?`<div class="hsr-unconfirmed" role="status">Possible: ${esc(hView.value)} stars</div>`:hView.status==='missing'?'<div class="hsr-unconfirmed" role="status">Missing nutritional data</div>':hView.status==='ineligible'?'<div class="hsr-unconfirmed" role="status">Not applicable to this product</div>':hView.status==='stable'?'<div class="hsr-unconfirmed" role="status">Provisional rating</div>':''}</div><div class="rating-name">Health Star Rating</div><div class="rating-meta">${esc(hView.label)}</div></div>
       ${ukCard(uk,p)}${sgCard(sg,p)}
     </div><div class="rating-details"><div class="confidence ${uniqueMissing.length?'warning':''}"><svg class="icon"><use href="#i-info"/></svg><span>${uniqueMissing.length?`Incomplete data: ${missText(uniqueMissing)}. The app displays calculated ranges rather than assuming these are zero.`:(isEstimated?'Some values are unknown; the displayed rating remains stable across their possible values.':'Scores are available for the supplied information; confirm the category and packaging values.')}</span></div>${regionalMessages.map(x=>`<div class="confidence warning"><svg class="icon"><use href="#i-info"/></svg><span>${esc(x)}</span></div>`).join('')}<div class="confidence"><svg class="icon"><use href="#i-info"/></svg><span>${categoryWarning}</span></div></div><div class="edit-cta"><span>Details don't match the packaging?<br>Correct them for a more reliable score.</span><button type="button" class="mini-primary" id="edit-btn">Edit nutrition <span aria-hidden="true">↗</span></button></div></article></div>
     <div class="result-bottom"><article class="nutrition-panel"><div class="panel-kicker"><span class="kicker-line"></span> THE NUMBERS</div><h3 class="small-heading">What's in 100 ${esc(p.unit==='ml'?'mL':'g')}?</h3><p class="description">Nutrients are normalised per 100 ${esc(p.unit==='ml'?'mL':'g')}. Bars provide relative context, not daily allowances.</p><div class="nutri-list">${nutrientRow('Energy',p.energyKj,'kJ',2500)}${nutrientRow('Sugars',p.sugars,'g',50)}${nutrientRow('Saturated fat',p.satFat,'g',20)}${nutrientRow('Salt',p.salt,'g',5)}${nutrientRow('Protein',p.protein,'g',30)}${nutrientRow('Fibre',p.fibre,'g',20)}</div></article>
@@ -409,7 +414,7 @@ function bind(){
 function init(){bind();switchTab(['scan','saved','about'].includes(location.hash.slice(1))?location.hash.slice(1):'scan',false);
   if(regionalEngineOutdated)status('Some ratings are unavailable because an old scoring engine was cached. Reload FoodLens to update.','error');
   const code=new URLSearchParams(location.search).get('barcode');if(code)lookupBarcode(code);
-  if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('./sw.js?v=7',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+  if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('./sw.js?v=8',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
   // Pre-warm the non-native decoder, so the first camera scan starts sooner on iOS.
   if(!('BarcodeDetector' in window)){const preload=()=>loadScannerLibrary().catch(()=>{});
     if('requestIdleCallback' in window)window.requestIdleCallback(preload,{timeout:3000});else setTimeout(preload,1200);}
