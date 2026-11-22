@@ -20,7 +20,7 @@ A private, mobile-first personal food scanner for GitHub Pages.
 
 ### Important limitations / accuracy
 
-- This app is a **personal, educational tool, not an official Nutri-Score or Health Star Rating calculator** and it is not approved to reproduce either scheme's certified artwork. The UI uses its own typography and simple letter/star visuals.
+- This app is a **personal, educational tool, not an official Nutri-Score or Health Star Rating calculator** and it is a visual comparison tool, not certified manufacturer labelling. The interface uses faithful, independently drawn representations of each national label (France coloured scale, Australia circular star seal, UK traffic-light panels, Singapore Nutri-Grade scale). These are not official supplied artwork or evidence of government endorsement.
 - HSR category eligibility — especially **milk substitutes, dairy foods and high-calcium cheese** — cannot be reliably inferred from a barcode. The app suggests a category from Open Food Facts tags but tells users to check the criteria themselves.
 - The **FVNL ingredient-percent values are not universally supplied by Open Food Facts**. Without verified values, the app calculates a possible range and offers manual input. Mixed dehydrated + fresh FVNL requires pre-adjusting the fraction following the HSR guide.
 - The app offers automatic HSR categories only upon explicit user choice or a database classification for plain water. UK traffic-light colours can be provisional when serving size is unknown; no official aggregate UK score exists. Verify all such choices and the label itself.
@@ -74,10 +74,16 @@ index.html                 Main app / PWA entry
 styles.css                 Responsive UI
 app.mjs                    Barcode lookup, camera, local data, views
 scores.mjs                 French and Australian scoring engines
-regional.mjs               Compatibility re-exports (UK/SG logic bundled in scores.mjs for hosting)
+regional.mjs               UK and Singapore scoring engines
 sw.js                      Offline app shell, same-origin only
 manifest.webmanifest       Installable PWA manifest
 icons/                     App icon assets
 tests/                     Node scoring and normalisation tests
 .nojekyll                  Disable automatic Jekyll transformation
 ```
+
+### v7: module compatibility and visual fidelity
+
+The release pins the app and scoring module to the same versioned URLs, precaches matching versions, and uses network-first loading for JavaScript/CSS. A deploy smoke test checks every imported scoring function. Older service worker caches are deleted on activation.
+
+The Australian circular badge matches the example’s blue (#1A75BB), stars, and central numeral, including half-star steps. The French, Singaporean and UK displays likewise use their respective country layout conventions. When a grade is missing or ineligible, no official-style seal is drawn. All values are informational FoodLens estimates unless independently verified on a label.
