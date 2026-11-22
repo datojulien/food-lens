@@ -1,0 +1,15 @@
+{
+  "name": "FoodLens — International Food Ratings",
+  "short_name": "FoodLens",
+  "description": "Scan products and compare Nutri-Score with Australia's Health Star Rating.",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "background_color": "#f8f9f5",
+  "theme_color": "#17352c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
